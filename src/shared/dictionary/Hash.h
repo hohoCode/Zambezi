@@ -30,4 +30,13 @@ inline unsigned long murmurHash3(unsigned long x ) {
   return x;
 }
 
+inline int murmurHash3Int(int x) {
+  x ^= x >> 16;
+  x *= 0x85ebca6b;
+  x ^= x >> 13;
+  x *= 0xc2b2ae35;
+  x ^= x >> 16;
+  return x;
+}
+
 #endif
