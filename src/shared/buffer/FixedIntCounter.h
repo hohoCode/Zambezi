@@ -4,13 +4,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef enum DefaultValue DefaultValue;
 typedef struct FixedIntCounter FixedIntCounter;
 
+#ifndef DEFAULT_VALUE_ENUM_GUARD
+#define DEFAULT_VALUE_ENUM_GUARD
+typedef enum DefaultValue DefaultValue;
 enum DefaultValue {
   ZERO = 0,
   NEGATIVE_ONE = -1
 };
+#endif
 
 struct FixedIntCounter {
   int* counter;
