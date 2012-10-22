@@ -1,7 +1,6 @@
 #ifndef POSTINGS_POOL_H_GUARD
 #define POSTINGS_POOL_H_GUARD
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "pfordelta/opt_p4.h"
