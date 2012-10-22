@@ -27,9 +27,10 @@ void writePostingsPool(PostingsPool* pool, FILE* fp) {
   fwrite(&pool->offset, sizeof(unsigned int), 1, fp);
 
   int i;
-  for(i = 0; i <= segment; i++) {
+  for(i = 0; i < pool->segment; i++) {
     fwrite(pool->pool[i], sizeof(unsigned int), MAX_INT_VALUE, fp);
   }
+  fwrite(pool->pool[pool->segment], sizeof(unsigned int), pool->offset, fp);
 }
 
 PostingsPool* readPostingsPool(FILE* fp) {
@@ -37,11 +38,12 @@ PostingsPool* readPostingsPool(FILE* fp) {
   fread(&pool->segment, sizeof(unsigned int), 1, fp);
   fread(&pool->offset, sizeof(unsigned int), 1, fp);
 
-  pool->pool = (SinglePool*) malloc(segment * sizeof(SinglePool));
+  pool->pool = (SinglePool*) malloc((pool->segment + 1) * sizeof(SinglePool));
   int i;
-  for(i = 0; i <= segment; i++) {
+  for(i = 0; i < segment; i++) {
     fread(pool->pool[i], sizeof(unsigned int), MAX_INT_VALUE, fp);
   }
+  fread(pool->pool[pool->segment], sizeof(unsigned int), pool->offset, fp);
   return pool;
 }
 
@@ -70,7 +72,7 @@ long compressAndAdd(PostingsPool* pool, unsigned int* data,
   unsigned int block[BLOCK_SIZE];
   int csize = OPT4(data, BLOCK_SIZE, block) / 4;
 
-  if(pool->offset != 0 && csize + 4 > (MAX_INT_VALUE - pool->offset + 1)) {
+  if((csize + 4) > (MAX_INT_VALUE - pool->offset)) {
     pool->segment++;
     pool->offset = 0;
   }
