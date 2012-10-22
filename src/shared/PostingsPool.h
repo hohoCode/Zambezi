@@ -2,6 +2,7 @@
 #define POSTINGS_POOL_H_GUARD
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include "pfordelta/opt_p4.h"
 
@@ -40,7 +41,7 @@ PostingsPool* readPostingsPool(FILE* fp) {
 
   pool->pool = (SinglePool*) malloc((pool->segment + 1) * sizeof(SinglePool));
   int i;
-  for(i = 0; i < segment; i++) {
+  for(i = 0; i < pool->segment; i++) {
     fread(pool->pool[i], sizeof(unsigned int), MAX_INT_VALUE, fp);
   }
   fread(pool->pool[pool->segment], sizeof(unsigned int), pool->offset, fp);
