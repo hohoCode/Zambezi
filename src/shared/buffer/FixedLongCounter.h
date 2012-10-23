@@ -62,6 +62,7 @@ long getFixedLongCounter(FixedLongCounter* counter, unsigned int index) {
   while(index >= counter->vocabSize) {
     expandFixedLongCounter(counter);
   }
+
   return counter->counter[index];
 }
 
@@ -87,7 +88,7 @@ void resetFixedLongCounter(FixedLongCounter* counter, unsigned int index) {
   setFixedLongCounter(counter, index, counter->defaultValue);
 }
 
-long nextIndexFixedLongCounter(FixedLongCounter* counter, int pos) {
+int nextIndexFixedLongCounter(FixedLongCounter* counter, int pos) {
   pos++;
   while(counter->counter[pos] == counter->defaultValue) {
     pos++;

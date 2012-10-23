@@ -99,12 +99,11 @@ int getDynamicBuffer(DynamicBuffer* buffer, int k, int** out) {
     }
     pos = (pos + 1) & buffer->mask;
   }
-  *out = buffer->value[pos];
-  return buffer->valueLength[pos];
+  return -1;
 }
 
 void putDynamicBuffer(DynamicBuffer** buffer, int k, int* v, int vlen) {
-  int pos = murmurHash3(k) & (*buffer)->mask;
+  int pos = murmurHash3Int(k) & (*buffer)->mask;
   while((*buffer)->used[pos]) {
     if((*buffer)->key[pos] == k) break;
     pos = (pos + 1) & (*buffer)->mask;

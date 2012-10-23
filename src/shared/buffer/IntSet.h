@@ -56,7 +56,7 @@ IntSet* expandIntSet(IntSet* set) {
 }
 
 void addIntSet(IntSet** set, int k) {
-  int pos = murmurHash3(k) & (*set)->mask;
+  int pos = murmurHash3Int(k) & (*set)->mask;
   while((*set)->used[pos]) {
     if((*set)->key[pos] == k) return;
     pos = (pos + 1) & (*set)->mask;
