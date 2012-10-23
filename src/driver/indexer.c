@@ -250,6 +250,7 @@ int main (int argc, char** args) {
         }
       }
     }
+    free(outBlock);
   }
 
   gettimeofday(&end, NULL);

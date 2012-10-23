@@ -103,6 +103,7 @@ long compressAndAdd(PostingsPool* pool, unsigned int* data,
 
   long newPointer = ENCODE_POINTER(pool->segment, pool->offset);
   pool->offset += (csize + 4);
+  free(block);
   return newPointer;
 }
 
