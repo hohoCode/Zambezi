@@ -308,8 +308,8 @@ int main (int argc, char** args) {
   destroyPostingsPool(pool);
   destroyIndexingData(data);
   if(contiguousPool) {
-    free(contiguousPool);
-    free(contiguousStartPointers);
+    destroyPostingsPool(contiguousPool);
+    destroyFixedLongCounter(contiguousStartPointers);
   }
   return 0;
 }
