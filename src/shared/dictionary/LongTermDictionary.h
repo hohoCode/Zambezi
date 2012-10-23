@@ -136,4 +136,27 @@ unsigned int LTD_putIfNotPresent(LongTermDictionary* dic,
   return id;
 }
 
+unsigned int LTD_get(LongTermDictionary* dic,
+                     char* chars, unsigned int len) {
+  unsigned long codes[MAX_LONGS];
+  codes[0] = encodeInLong(chars, len, 0);
+  codes[1] = encodeInLong(chars, len, LONG_CAPACITY);
+  codes[2] = encodeInLong(chars, len, LONG_CAPACITY * 2);
+
+  int pos = (int) murmurHash3(codes[0]) & dic->mask;
+  int kpos = pos * MAX_LONGS;
+  while(dic->used[pos]) {
+    if(dic->key[kpos] == codes[0]) {
+      if(dic->key[kpos + 1] == codes[1]) {
+        if(dic->key[kpos + 2] == codes[2]) {
+          return dic->value[pos];
+        }
+      }
+    }
+    pos = (pos + 1) & dic->mask;
+    kpos = pos * MAX_LONGS;
+  }
+  return -1;
+}
+
 #endif

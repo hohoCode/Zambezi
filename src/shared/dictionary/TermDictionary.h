@@ -134,4 +134,19 @@ unsigned int TD_putIfNotPresent(TermDictionary* dic,
   return id;
 }
 
+unsigned int TD_get(TermDictionary* dic,
+                    char* chars, unsigned int len) {
+  Term* term = createTerm(chars, len);
+  int pos = (int) term->hash & dic->mask;
+  while(dic->used[pos]) {
+    if(equals(dic->key[pos], term)) {
+      term_destroy(term);
+      return dic->value[pos];
+    }
+    pos = (pos + 1) & dic->mask;
+  }
+  term_destroy(term);
+  return -1;
+}
+
 #endif

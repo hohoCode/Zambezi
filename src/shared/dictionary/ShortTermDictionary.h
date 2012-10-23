@@ -119,4 +119,17 @@ unsigned int STD_putIfNotPresent(ShortTermDictionary* dic,
   return id;
 }
 
+unsigned int STD_get(ShortTermDictionary* dic,
+                     char* chars, unsigned int len) {
+  unsigned long code = encodeInLong(chars, len, 0);
+  int pos = (int) murmurHash3(code) & dic->mask;
+  while(dic->used[pos]) {
+    if(dic->key[pos] == code) {
+      return dic->value[pos];
+    }
+    pos = (pos + 1) & dic->mask;
+  }
+  return -1;
+}
+
 #endif

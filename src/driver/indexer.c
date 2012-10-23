@@ -291,7 +291,7 @@ int main (int argc, char** args) {
     while((term = nextIndexFixedLongCounter(contiguousStartPointers, term)) != -1) {
       fwrite(&term, sizeof(int), 1, ofp);
       fwrite(&data->df->counter[term], sizeof(int), 1, ofp);
-      fwrite(&contiguousStartPointers->counter[term], sizeof(int), 1, ofp);
+      fwrite(&contiguousStartPointers->counter[term], sizeof(long), 1, ofp);
     }
   } else {
     int size = sizeFixedLongCounter(data->startPointers);
@@ -300,7 +300,7 @@ int main (int argc, char** args) {
     while((term = nextIndexFixedLongCounter(data->startPointers, term)) != -1) {
       fwrite(&term, sizeof(int), 1, ofp);
       fwrite(&data->df->counter[term], sizeof(int), 1, ofp);
-      fwrite(&data->startPointers->counter[term], sizeof(int), 1, ofp);
+      fwrite(&data->startPointers->counter[term], sizeof(long), 1, ofp);
     }
   }
   fclose(ofp);

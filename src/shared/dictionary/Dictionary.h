@@ -43,6 +43,16 @@ void destroyDictionary(Dictionary* dic) {
   TD_destroy(dic->other);
 }
 
+unsigned int getDictionary(Dictionary* dic, char* chars, unsigned int len) {
+  if(len <= LONG_CAPACITY) {
+    return STD_get(dic->shortTermDic, chars, len);
+  } else if(len <= MAX_LONGS_LENGTH) {
+    return LTD_get(dic->longTermDic, chars, len);
+  } else {
+    return TD_get(dic->other, chars, len);
+  }
+}
+
 unsigned int putIfNotPresent(Dictionary* dic, char* chars,
                              unsigned int len, int id) {
   if(len <= LONG_CAPACITY) {
