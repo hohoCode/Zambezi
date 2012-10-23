@@ -307,7 +307,7 @@ int main (int argc, char** args) {
 
   destroyPostingsPool(pool);
   destroyIndexingData(data);
-  if(contiguousPool) {
+  if(contiguous) {
     destroyPostingsPool(contiguousPool);
     destroyFixedLongCounter(contiguousStartPointers);
   }
