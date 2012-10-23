@@ -136,7 +136,7 @@ unsigned int LTD_putIfNotPresent(LongTermDictionary* dic,
   return id;
 }
 
-unsigned int LTD_get(LongTermDictionary* dic,
+int LTD_get(LongTermDictionary* dic,
                      char* chars, unsigned int len) {
   unsigned long codes[MAX_LONGS];
   codes[0] = encodeInLong(chars, len, 0);

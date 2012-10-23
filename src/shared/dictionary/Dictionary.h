@@ -43,7 +43,7 @@ void destroyDictionary(Dictionary* dic) {
   TD_destroy(dic->other);
 }
 
-unsigned int getDictionary(Dictionary* dic, char* chars, unsigned int len) {
+int getDictionary(Dictionary* dic, char* chars, unsigned int len) {
   if(len <= LONG_CAPACITY) {
     return STD_get(dic->shortTermDic, chars, len);
   } else if(len <= MAX_LONGS_LENGTH) {

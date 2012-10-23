@@ -37,6 +37,7 @@ unsigned int* intersectPostingsLists(PostingsPool* pool, long a, long b, int min
       if(a == UNDEFINED_POINTER) {
         break;
       }
+      memset(dataA, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
       cA = decompressBlock(pool, dataA, a);
       iA = 0;
     }
@@ -45,6 +46,7 @@ unsigned int* intersectPostingsLists(PostingsPool* pool, long a, long b, int min
       if(b == UNDEFINED_POINTER) {
         break;
       }
+      memset(dataB, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
       cB = decompressBlock(pool, dataB, b);
       iB = 0;
     }
@@ -60,6 +62,7 @@ unsigned int* intersectPostingsLists(PostingsPool* pool, long a, long b, int min
           if(a == UNDEFINED_POINTER) {
             break;
           }
+          memset(dataA, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
           cA = decompressBlock(pool, dataA, a);
           iA = 0;
         }
@@ -78,6 +81,7 @@ unsigned int* intersectPostingsLists(PostingsPool* pool, long a, long b, int min
           if(b == UNDEFINED_POINTER) {
             break;
           }
+          memset(dataB, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
           cB = decompressBlock(pool, dataB, b);
           iB = 0;
         }
@@ -118,6 +122,7 @@ int intersectSetPostingsList(PostingsPool* pool, long a, unsigned int* currentSe
       if(a == UNDEFINED_POINTER) {
         break;
       }
+      memset(data, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
       c = decompressBlock(pool, data, a);
       i = 0;
     }
@@ -139,6 +144,7 @@ int intersectSetPostingsList(PostingsPool* pool, long a, unsigned int* currentSe
           if(a == UNDEFINED_POINTER) {
             break;
           }
+          memset(data, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
           c = decompressBlock(pool, data, a);
           i = 0;
         }
@@ -174,6 +180,7 @@ unsigned int* intersect(PostingsPool* pool, long* startPointers, int len, int mi
     int iSet = 0;
     long t = startPointers[0];
     while(t != UNDEFINED_POINTER) {
+      memset(block, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
       int c = decompressBlock(pool, block, t);
       memcpy(&set[iSet], block, c * sizeof(unsigned int));
       iSet += c;
@@ -240,7 +247,7 @@ int main (int argc, char** args) {
   FixedIntCounter* queryLength = createFixedIntCounter(32768, 0);
   FixedIntCounter* idToIndexMap = createFixedIntCounter(32768, 0);
   fp = fopen(queryPath, "r");
-  int totalQueries = 0, id, qlen, j, pos, termid;
+  int totalQueries = 0, id, qlen, fqlen, j, pos, termid;
   char query[1024];
   fscanf(fp, "%d", &totalQueries);
   unsigned int** queries = (unsigned int**) malloc(totalQueries * sizeof(unsigned int*));
@@ -248,6 +255,7 @@ int main (int argc, char** args) {
     fscanf(fp, "%d %d", &id, &qlen);
     queries[i] = (unsigned int*) malloc(qlen * sizeof(unsigned int));
     pos = 0;
+    fqlen = qlen;
     for(j = 0; j < qlen; j++) {
       fscanf(fp, "%s", query);
       termid = getDictionary(dic, query, strlen(query));
@@ -255,14 +263,14 @@ int main (int argc, char** args) {
         if(getFixedIntCounter(df, termid) > DF_CUTOFF) {
           queries[i][pos++] = termid;
         } else {
-          qlen--;
+          fqlen--;
         }
       } else {
-        qlen--;
+        fqlen--;
       }
     }
     setFixedIntCounter(idToIndexMap, id, i);
-    setFixedIntCounter(queryLength, id, qlen);
+    setFixedIntCounter(queryLength, id, fqlen);
   }
   fclose(fp);
 
@@ -281,7 +289,7 @@ int main (int argc, char** args) {
 
     unsigned int* qdf = (int*) calloc(qlen, sizeof(unsigned int));
     int* sortedDfIndex = (int*) calloc(qlen, sizeof(int));
-    long* qStartPointers = (long*) calloc(qlen, sizeof(int));
+    long* qStartPointers = (long*) calloc(qlen, sizeof(long));
 
     qdf[0] = getFixedIntCounter(df, queries[qindex][0]);
     unsigned int minimumDf = qdf[0];
