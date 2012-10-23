@@ -82,7 +82,7 @@ long compressAndAdd(PostingsPool* pool, unsigned int* data,
   }
 
   unsigned int* block = (unsigned int*) calloc(BLOCK_SIZE*2, sizeof(unsigned int));
-  unsigned int csize = OPT4(data, BLOCK_SIZE, block) / sizeof(unsigned int);
+  unsigned int csize = OPT4(data, len, block);
 
   if((csize + 4) > (MAX_INT_VALUE - pool->offset)) {
     pool->segment++;

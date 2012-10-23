@@ -156,6 +156,11 @@ unsigned int *detailed_p4_decode(unsigned int *_p, unsigned int *_w,  unsigned i
       psum += all_array[ i + 1] + 1;
     }
   }
+
+  for(i = 1; i < BLOCK_SIZE && _p[i] != 0; i++) {
+    _p[i] += _p[i - 1];
+  }
+
   return(_w);
 }
 
