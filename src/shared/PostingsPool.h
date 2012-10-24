@@ -11,8 +11,8 @@
 #define LAST_SEGMENT -1
 
 #define DECODE_SEGMENT(P) ((int) (P >> 32))
-#define DECODE_OFFSET(P) ((int) (P & 0xFFFFFFFF))
-#define ENCODE_POINTER(S, O) ((((long) S)<<32) | (long) O)
+#define DECODE_OFFSET(P) ((unsigned int) (P & 0xFFFFFFFF))
+#define ENCODE_POINTER(S, O) ((((long) S)<<32) | (unsigned int) O)
 
 typedef struct PostingsPool PostingsPool;
 
@@ -75,7 +75,7 @@ void destroyPostingsPool(PostingsPool* pool) {
 long compressAndAdd(PostingsPool* pool, unsigned int* data,
                     unsigned int len, long tailPointer) {
   int lastSegment = -1;
-  int lastOffset = -1;
+  unsigned int lastOffset = 0;
   if(tailPointer != UNDEFINED_POINTER) {
     lastSegment = DECODE_SEGMENT(tailPointer);
     lastOffset = DECODE_OFFSET(tailPointer);
@@ -92,7 +92,7 @@ long compressAndAdd(PostingsPool* pool, unsigned int* data,
   pool->pool[pool->segment][pool->offset] = csize;
   pool->pool[pool->segment][pool->offset + 1] = len;
   pool->pool[pool->segment][pool->offset + 2] = LAST_SEGMENT;
-  pool->pool[pool->segment][pool->offset + 3] = LAST_SEGMENT;
+  pool->pool[pool->segment][pool->offset + 3] = 0;
   memcpy(&pool->pool[pool->segment][pool->offset + 4],
          block, csize * sizeof(int));
 
@@ -109,7 +109,7 @@ long compressAndAdd(PostingsPool* pool, unsigned int* data,
 
 long nextPointer(PostingsPool* pool, long pointer) {
   int pSegment = DECODE_SEGMENT(pointer);
-  int pOffset = DECODE_OFFSET(pointer);
+  unsigned int pOffset = DECODE_OFFSET(pointer);
   if(pSegment == LAST_SEGMENT) {
     return UNDEFINED_POINTER;
   }
@@ -119,7 +119,7 @@ long nextPointer(PostingsPool* pool, long pointer) {
 
 int decompressBlock(PostingsPool* pool, unsigned int* outBlock, long pointer) {
   int pSegment = DECODE_SEGMENT(pointer);
-  int pOffset = DECODE_OFFSET(pointer);
+  unsigned int pOffset = DECODE_OFFSET(pointer);
 
   unsigned int aux[BLOCK_SIZE*2];
   unsigned int* block = &pool->pool[pSegment][pOffset + 4];
