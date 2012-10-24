@@ -120,7 +120,7 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
       } else {
         memset(curBuffer, 0, len * sizeof(int));
       }
-        resetFixedIntCounter(data->bufferPositions, id);
+      resetFixedIntCounter(data->bufferPositions, id);
     }
   }
 
@@ -256,6 +256,7 @@ int main (int argc, char** args) {
   gettimeofday(&end, NULL);
   printf("Time: %6.0f\n", ((float) (end.tv_sec - start.tv_sec)));
   printf("Terms in buffer: %u\n", data->buffer->size);
+  fflush(stdout);
 
   char dicPath[1024];
   strcpy(dicPath, outputPath);

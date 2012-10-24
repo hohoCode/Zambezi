@@ -8,11 +8,11 @@
 
 #define MAX_INT_VALUE ((unsigned int) 0xFFFFFFFF)
 #define UNDEFINED_POINTER -1l
-#define LAST_SEGMENT -1
+#define UNKNOWN_SEGMENT -1
 
 #define DECODE_SEGMENT(P) ((int) (P >> 32))
 #define DECODE_OFFSET(P) ((unsigned int) (P & 0xFFFFFFFF))
-#define ENCODE_POINTER(S, O) ((((long) S)<<32) | (unsigned int) O)
+#define ENCODE_POINTER(S, O) ((((unsigned long) S)<<32) | (unsigned long) O)
 
 typedef struct PostingsPool PostingsPool;
 
@@ -91,7 +91,7 @@ long compressAndAdd(PostingsPool* pool, unsigned int* data,
 
   pool->pool[pool->segment][pool->offset] = csize;
   pool->pool[pool->segment][pool->offset + 1] = len;
-  pool->pool[pool->segment][pool->offset + 2] = LAST_SEGMENT;
+  pool->pool[pool->segment][pool->offset + 2] = UNKNOWN_SEGMENT;
   pool->pool[pool->segment][pool->offset + 3] = 0;
   memcpy(&pool->pool[pool->segment][pool->offset + 4],
          block, csize * sizeof(int));
@@ -110,18 +110,20 @@ long compressAndAdd(PostingsPool* pool, unsigned int* data,
 long nextPointer(PostingsPool* pool, long pointer) {
   int pSegment = DECODE_SEGMENT(pointer);
   unsigned int pOffset = DECODE_OFFSET(pointer);
-  if(pSegment == LAST_SEGMENT) {
+
+  if(pool->pool[pSegment][pOffset + 2] == UNKNOWN_SEGMENT) {
     return UNDEFINED_POINTER;
   }
 
-  return ENCODE_POINTER(pool->pool[pSegment][pOffset + 2], pool->pool[pSegment][pOffset + 3]);
+  return ENCODE_POINTER(pool->pool[pSegment][pOffset + 2],
+                        pool->pool[pSegment][pOffset + 3]);
 }
 
 int decompressBlock(PostingsPool* pool, unsigned int* outBlock, long pointer) {
   int pSegment = DECODE_SEGMENT(pointer);
   unsigned int pOffset = DECODE_OFFSET(pointer);
 
-  unsigned int aux[BLOCK_SIZE*2];
+  unsigned int aux[BLOCK_SIZE*4];
   unsigned int* block = &pool->pool[pSegment][pOffset + 4];
   detailed_p4_decode(outBlock, block, aux);
 
