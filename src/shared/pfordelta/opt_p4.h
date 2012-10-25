@@ -35,7 +35,7 @@ int findBestB(unsigned int* docid) {
   for(i = 0; i < 17; i++) {
     temp = (offset[i]<<5) + (cnum[i] * BLOCK_SIZE);
     if(temp < bestOffset) {
-      bestB = cnum[i];
+      bestB = i;
       bestOffset = temp;
     }
   }
