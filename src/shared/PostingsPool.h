@@ -12,7 +12,7 @@
 
 #define DECODE_SEGMENT(P) ((int) (P >> 32))
 #define DECODE_OFFSET(P) ((unsigned int) (P & 0xFFFFFFFF))
-#define ENCODE_POINTER(S, O) ((((unsigned long) S)<<32) | (unsigned long) O)
+#define ENCODE_POINTER(S, O) ((((unsigned long) S)<<32) | (unsigned int) O)
 
 typedef struct PostingsPool PostingsPool;
 
