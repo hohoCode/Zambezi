@@ -167,7 +167,13 @@ int main (int argc, char** args) {
 
       int consumed;
       int start = 0;
-      int c = sscanf(iobuffer, "%[^\n]\n%n", line, &consumed);
+      int c;
+      if(iobuffer[0] == '\n') {
+        consumed = 1;
+        c = 1;
+      } else {
+        c = sscanf(iobuffer, "%[^\n]\n%n", line, &consumed);
+      }
       while(c > 0) {
         if(iobuffer[start+consumed - 1] == '\n') {
           if(oldBufferIndex > 0) {
