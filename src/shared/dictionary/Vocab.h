@@ -6,7 +6,7 @@
 #define SHIFT 6
 #define MASK 63
 
-#define ENCODE(X) ((X>57) ? X-81l : X-37l)
+#define ENCODE(X) ((X>57) ? X-81l : X-44l)
 
 inline unsigned long encodeInLong(char* chars, unsigned int len, int x) {
   if(x >= len) return 0L;

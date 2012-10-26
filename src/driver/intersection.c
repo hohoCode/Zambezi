@@ -16,8 +16,8 @@
 #define POINTER_FILE "pointers"
 #define DICTIONARY_FILE "dictionary"
 
-unsigned int* intersectPostingsLists(PostingsPool* pool, long a, long b, int minDf) {
-  unsigned int* set = (unsigned int*) calloc(minDf, sizeof(unsigned int));
+int* intersectPostingsLists(PostingsPool* pool, long a, long b, int minDf) {
+  int* set = (int*) calloc(minDf, sizeof(int));
   unsigned int* dataA = (unsigned int*) calloc(BLOCK_SIZE * 2, sizeof(unsigned int));
   unsigned int* dataB = (unsigned int*) calloc(BLOCK_SIZE * 2, sizeof(unsigned int));
 
@@ -102,7 +102,7 @@ unsigned int* intersectPostingsLists(PostingsPool* pool, long a, long b, int min
   return set;
 }
 
-int intersectSetPostingsList(PostingsPool* pool, long a, unsigned int* currentSet, int len) {
+int intersectSetPostingsList(PostingsPool* pool, long a, int* currentSet, int len) {
   unsigned int* data = (unsigned int*) calloc(BLOCK_SIZE * 2, sizeof(unsigned int));
   int c = decompressBlock(pool, data, a);
   int iSet = 0, iCurrent = 0, i = 0;
@@ -173,16 +173,16 @@ int intersectSetPostingsList(PostingsPool* pool, long a, unsigned int* currentSe
   return iSet;
 }
 
-unsigned int* intersect(PostingsPool* pool, long* startPointers, int len, int minDf) {
+int* intersect(PostingsPool* pool, long* startPointers, int len, int minDf) {
   if(len < 2) {
     unsigned int* block = (unsigned int*) calloc(BLOCK_SIZE * 2, sizeof(unsigned int));
-    unsigned int* set = (unsigned int*) calloc(minDf, sizeof(unsigned int));
+    int* set = (int*) calloc(minDf, sizeof(int));
     int iSet = 0;
     long t = startPointers[0];
     while(t != UNDEFINED_POINTER) {
       memset(block, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
       int c = decompressBlock(pool, block, t);
-      memcpy(&set[iSet], block, c * sizeof(unsigned int));
+      memcpy(&set[iSet], block, c * sizeof(int));
       iSet += c;
       t = nextPointer(pool, t);
     }
@@ -190,7 +190,7 @@ unsigned int* intersect(PostingsPool* pool, long* startPointers, int len, int mi
     return set;
   }
 
-  unsigned int* set = intersectPostingsLists(pool, startPointers[0], startPointers[1], minDf);
+  int* set = intersectPostingsLists(pool, startPointers[0], startPointers[1], minDf);
   int i;
   for(i = 2; i < len; i++) {
     intersectSetPostingsList(pool, startPointers[i], set, minDf);
@@ -287,7 +287,7 @@ int main (int argc, char** args) {
     qlen = queryLength->counter[id];
     int qindex = idToIndexMap->counter[id];
 
-    unsigned int* qdf = (int*) calloc(qlen, sizeof(unsigned int));
+    unsigned int* qdf = (unsigned int*) calloc(qlen, sizeof(unsigned int));
     int* sortedDfIndex = (int*) calloc(qlen, sizeof(int));
     long* qStartPointers = (long*) calloc(qlen, sizeof(long));
 
@@ -316,7 +316,7 @@ int main (int argc, char** args) {
                                               queries[qindex][sortedDfIndex[i]]);
     }
 
-    unsigned int* set = intersect(pool, qStartPointers, qlen, minimumDf);
+    int* set = intersect(pool, qStartPointers, qlen, minimumDf);
 
     if(outputPath) {
       for(i = 0; i < minimumDf && set[i] != TERMINAL_DOCID; i++) {
