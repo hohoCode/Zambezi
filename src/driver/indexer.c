@@ -5,8 +5,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include "pfordelta/opt_p4.h"
-#include "dictionary/Dictionary.h"
-#include "dictionary/Vocab.h"
+#include "dictionary/hashtable.h"
 #include "buffer/FixedBuffer.h"
 #include "buffer/DynamicBuffer.h"
 #include "buffer/FixedIntCounter.h"
@@ -22,10 +21,11 @@
 #define INDEX_FILE "index"
 #define POINTER_FILE "pointers"
 #define DICTIONARY_FILE "dictionary"
+#define DEFAULT_VOCAB_SIZE 33554432
 
 typedef struct IndexingData IndexingData;
 struct IndexingData {
-  Dictionary* dic;
+  Dictionary** dic;
   DynamicBuffer* buffer;
   FixedIntCounter* bufferPositions;
   FixedLongCounter* tailPointers;
@@ -38,7 +38,7 @@ struct IndexingData {
 };
 
 void destroyIndexingData(IndexingData* data) {
-  destroyDictionary(data->dic);
+  destroyhashtable(data->dic);
   destroyDynamicBuffer(data->buffer);
   destroyFixedIntCounter(data->bufferPositions);
   destroyFixedLongCounter(data->tailPointers);
@@ -56,7 +56,7 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
   clearIntSet(data->uniqueTerms);
   char* token = strtok(line+consumed+1, " ");
   while(token) {
-    int id = putIfNotPresent(data->dic, token, strlen(token), termid);
+    int id = hashinsert(data->dic, token, termid);
     addIntSet(&data->uniqueTerms, id);
     if(id == termid) {
       termid++;
@@ -135,7 +135,7 @@ int main (int argc, char** args) {
   IndexingData* data = (IndexingData*) malloc(sizeof(IndexingData));
   data->buffer = createDynamicBuffer(8388608);
   data->firstOccur = createFixedBuffer(DEFAULT_VOCAB_SIZE, DF_CUTOFF);
-  data->dic = createDictionary(DEFAULT_VOCAB_SIZE);
+  data->dic = inithashtable();
   data->bufferPositions = createFixedIntCounter(DEFAULT_VOCAB_SIZE, 0);
   data->df = createFixedIntCounter(DEFAULT_VOCAB_SIZE, 0);
   data->tailPointers = createFixedLongCounter(DEFAULT_VOCAB_SIZE, UNDEFINED_POINTER);
@@ -270,7 +270,7 @@ int main (int argc, char** args) {
   strcat(dicPath, DICTIONARY_FILE);
 
   FILE* ofp = fopen(dicPath, "wb");
-  writeDictionary(data->dic, ofp);
+  writehashtable(data->dic, ofp);
   fclose(ofp);
 
   char indexPath[1024];

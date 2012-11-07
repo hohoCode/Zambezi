@@ -4,8 +4,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include "pfordelta/opt_p4.h"
-#include "dictionary/Dictionary.h"
-#include "dictionary/Vocab.h"
+#include "dictionary/hashtable.h"
 #include "buffer/FixedIntCounter.h"
 #include "buffer/FixedLongCounter.h"
 #include "PostingsPoolOnDisk.h"
@@ -15,6 +14,7 @@
 #define INDEX_FILE "index"
 #define POINTER_FILE "pointers"
 #define DICTIONARY_FILE "dictionary"
+#define DEFAULT_VOCAB_SIZE 33554432
 
 int* intersectPostingsLists(PostingsPoolOnDisk* pool, long a, long b, int minDf) {
   int* set = (int*) calloc(minDf, sizeof(int));
@@ -211,7 +211,7 @@ int main (int argc, char** args) {
   strcat(dicPath, "/");
   strcat(dicPath, DICTIONARY_FILE);
   FILE* fp = fopen(dicPath, "rb");
-  Dictionary* dic = readDictionary(fp);
+  Dictionary** dic = readhashtable(fp);
   fclose(fp);
 
   char indexPath[1024];
@@ -257,7 +257,7 @@ int main (int argc, char** args) {
     fqlen = qlen;
     for(j = 0; j < qlen; j++) {
       fscanf(fp, "%s", query);
-      termid = getDictionary(dic, query, strlen(query));
+      termid = hashsearch(dic, query);
       if(termid >= 0) {
         if(getFixedIntCounter(df, termid) > DF_CUTOFF) {
           queries[i][pos++] = termid;
@@ -349,7 +349,7 @@ int main (int argc, char** args) {
   free(queries);
   destroyFixedIntCounter(queryLength);
   destroyFixedIntCounter(idToIndexMap);
-  destroyDictionary(dic);
+  destroyhashtable(dic);
   free(pool);
   destroyFixedIntCounter(df);
   destroyFixedLongCounter(startPointers);
