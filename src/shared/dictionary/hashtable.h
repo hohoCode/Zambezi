@@ -62,7 +62,7 @@ int hashsearch(Dictionary **ht, char *w) {
       ht[hval] = htmp;
     }
 
-  if(htmp == NULL return -1;
+  if(htmp == NULL) return -1;
   return htmp->id;
 }
 
@@ -123,7 +123,7 @@ void writehashtable(Dictionary **ht, FILE* fp) {
 }
 
 Dictionary** readhashtable(FILE* fp) {
-  Dictionary** ht = inithash();
+  Dictionary** ht = inithashtable();
   int id, i, l;
   char term[1048576];
   fread(&id, sizeof(int), 1, fp);
