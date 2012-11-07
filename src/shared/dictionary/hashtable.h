@@ -116,7 +116,7 @@ void writehashtable(Dictionary **ht, FILE* fp) {
       fwrite(&ptr->id, sizeof(int), 1, fp);
       l = strlen(ptr->word);
       fwrite(&l, sizeof(int), 1, fp);
-      fwrite(&ptr->word, sizeof(char), strlen(ptr->word), fp);
+      fwrite(ptr->word, sizeof(char), strlen(ptr->word), fp);
     }
   }
   fwrite(&terminal, sizeof(int), 1, fp);
@@ -130,6 +130,7 @@ Dictionary** readhashtable(FILE* fp) {
   while(id != -1) {
     fread(&l, sizeof(int), 1, fp);
     fread(term, sizeof(char), l, fp);
+    term[l] = '\0';
     hashinsert(ht, term, id);
     fread(&id, sizeof(int), 1, fp);
   }
