@@ -259,7 +259,6 @@ int main (int argc, char** args) {
     for(j = 0; j < qlen; j++) {
       fscanf(fp, "%s", query);
       termid = hashsearch(dic, query);
-      printf("%s %d\n", query, termid);
       if(termid >= 0) {
         if(getFixedIntCounter(df, termid) > DF_CUTOFF) {
           queries[i][pos++] = termid;
