@@ -43,7 +43,7 @@ IntSet* expandIntSet(IntSet* set) {
   int i = 0, j, pos, k;
   for(j = set->size; j-- != 0;) {
     while(!set->used[i]) i++;
-    pos = murmurHash3Int(set->key[i]) & copy->mask;
+    pos = set->key[i] & copy->mask;
     while(copy->used[pos]) {
       pos = (pos + 1) & copy->mask;
     }
@@ -56,7 +56,7 @@ IntSet* expandIntSet(IntSet* set) {
 }
 
 void addIntSet(IntSet** set, int k) {
-  int pos = murmurHash3Int(k) & (*set)->mask;
+  int pos = k & (*set)->mask;
   while((*set)->used[pos]) {
     if((*set)->key[pos] == k) return;
     pos = (pos + 1) & (*set)->mask;

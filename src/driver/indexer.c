@@ -13,7 +13,7 @@
 #include "buffer/IntSet.h"
 #include "PostingsPool.h"
 
-#define LENGTH 8*4096
+#define LENGTH 32*1024
 #define LINE_LENGTH 0x100000
 #define DF_CUTOFF 9
 #define EXPANSION_RATE 2
@@ -49,19 +49,34 @@ void destroyIndexingData(IndexingData* data) {
   free(data);
 }
 
+void grabword(char* t, char del, int* consumed) {
+  char* s = t;
+  *consumed = 0;
+  while(*s != '\0' && *s != del) {
+    (*consumed)++;
+    s++;
+  }
+
+  (*consumed) += (*s == del);
+  *s = '\0';
+}
+
 int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
   int docid = 0, consumed;
-  sscanf(line, "%d%n", &docid, &consumed);
+  grabword(line, '\t', &consumed);
+  docid = atoi(line);
+  line += consumed;
 
   clearIntSet(data->uniqueTerms);
-  char* token = strtok(line+consumed+1, " ");
-  while(token) {
-    int id = hashinsert(data->dic, token, termid);
+  grabword(line, ' ', &consumed);
+  while(consumed > 0) {
+    int id = hashinsert(data->dic, line, termid);
     addIntSet(&data->uniqueTerms, id);
     if(id == termid) {
       termid++;
     }
-    token = strtok(NULL, " ");
+    line += consumed;
+    grabword(line, ' ', &consumed);
   }
 
   int keyPos = -1;
@@ -127,6 +142,22 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
   return termid;
 }
 
+int grabline(char* t, char* buffer, int* consumed) {
+  int c = 0;
+  char* s = t;
+  *consumed = 0;
+  while(*s != '\0' && *s != '\n') {
+    (*consumed)++;
+    s++;
+  }
+  if(*consumed == 0) return 0;
+
+  memcpy(buffer, t, *consumed);
+  buffer[*consumed] = '\0';
+  *consumed += (*s == '\n');
+  return *s == '\n';
+}
+
 int main (int argc, char** args) {
   char* outputPath = args[1];
   int maxBlocks = atoi(args[2]) * BLOCK_SIZE;
@@ -147,15 +178,16 @@ int main (int argc, char** args) {
 
   int termid = 0;
 
-  unsigned char oldBuffer[LINE_LENGTH * 2];
-  unsigned char iobuffer[LENGTH];
-  unsigned char line[LINE_LENGTH];
+  unsigned char* oldBuffer = (unsigned char*) calloc(LINE_LENGTH * 2, sizeof(unsigned char));
+  unsigned char* iobuffer = (unsigned char*) calloc(LENGTH, sizeof(unsigned char));
+  unsigned char* line = (unsigned char*) calloc(LINE_LENGTH, sizeof(unsigned char));
   gzFile * file;
 
   struct timeval start, end;
   gettimeofday(&start, NULL);
 
   int fp = 0;
+  int len = 0;
   for(fp = 4; fp < argc; fp++) {
     file = gzopen(args[fp], "r");
     int oldBufferIndex = 0;
@@ -172,7 +204,8 @@ int main (int argc, char** args) {
         consumed = 1;
         c = 1;
       } else {
-        c = sscanf(iobuffer, "%[^\n]\n%n", line, &consumed);
+        c = grabline(iobuffer, line+len, &consumed);
+        len += consumed;
       }
       while(c > 0) {
         if(iobuffer[start+consumed - 1] == '\n') {
@@ -181,16 +214,20 @@ int main (int argc, char** args) {
             termid = process(pool, data, oldBuffer, termid);
             memset(oldBuffer, 0, oldBufferIndex);
             oldBufferIndex = 0;
+            len = 0;
           } else {
             termid = process(pool, data, line, termid);
+            len = 0;
           }
         } else {
           memcpy(oldBuffer+oldBufferIndex, line, consumed);
           oldBufferIndex += consumed;
+          len = 0;
         }
 
         start += consumed;
-        c = sscanf(iobuffer+start, "%[^\n]\n%n", line, &consumed);
+        c = grabline(iobuffer+start, line + len, &consumed);
+        len += consumed;
       }
       if (bytes_read < LENGTH - 1) {
         if (gzeof (file)) {
@@ -319,5 +356,9 @@ int main (int argc, char** args) {
     destroyPostingsPool(contiguousPool);
     destroyFixedLongCounter(contiguousStartPointers);
   }
+
+  free(oldBuffer);
+  free(iobuffer);
+  free(line);
   return 0;
 }

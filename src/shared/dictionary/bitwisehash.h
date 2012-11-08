@@ -3,7 +3,7 @@
    statement is retained. */
 
 /* Bitwise hash function.  Note that tsize does not have to be prime. */
-unsigned int bitwisehash(char *word, int tsize, unsigned int seed) {
+unsigned int bitwisehash(char *word, int mask, unsigned int seed) {
   char c;
   unsigned int h;
 
@@ -11,5 +11,5 @@ unsigned int bitwisehash(char *word, int tsize, unsigned int seed) {
   for(; ( c=*word )!='\0' ; word++) {
     h ^= ((h << 5) + c + (h >> 2));
   }
-  return((unsigned int)((h&0x7fffffff) % tsize));
+  return((unsigned int)(h&mask));
 }

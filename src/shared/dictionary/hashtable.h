@@ -6,6 +6,7 @@
 #include "scmp.h"
 
 #define TSIZE  134217728
+#define TMASK 134217727
 #define SEED  1159241
 #define HASHFN  bitwisehash
 
@@ -46,7 +47,7 @@ void destroyhashtable(Dictionary **ht) {
 /* Search hash table for given string, return record if found, else NULL */
 int hashsearch(Dictionary **ht, char *w) {
   Dictionary  *htmp, *hprv;
-  unsigned int hval = HASHFN(w, TSIZE, SEED);
+  unsigned int hval = HASHFN(w, TMASK, SEED);
 
   for( hprv = NULL, htmp=ht[hval]
          ; htmp != NULL && scmp(htmp->word, w) != 0
@@ -70,7 +71,7 @@ int hashsearch(Dictionary **ht, char *w) {
 /* Search hash table for given string, insert if not found */
 int hashinsert(Dictionary **ht, char *w, int id) {
   Dictionary  *htmp, *hprv;
-  unsigned int hval = HASHFN(w, TSIZE, SEED);
+  unsigned int hval = HASHFN(w, TMASK, SEED);
 
   for( hprv = NULL, htmp=ht[hval]
          ; htmp != NULL && scmp(htmp->word, w) != 0
