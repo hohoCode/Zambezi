@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "dictionary/Hash.h"
+#include "PostingsPool.h"
 
 #define BUFFER_LOAD_FACTOR 0.75
 #define TRUE 1
@@ -12,33 +13,28 @@
 typedef struct DynamicBuffer DynamicBuffer;
 
 struct DynamicBuffer {
-  unsigned char* used;
-  unsigned int* key;
   unsigned int** value;
   unsigned int* valueLength;
+  unsigned int* valuePosition;
+  unsigned long* tailPointer;
   unsigned int capacity;
   unsigned int size;
-  unsigned int mask;
 };
 
 DynamicBuffer* createDynamicBuffer(unsigned int initialSize) {
   DynamicBuffer* buffer = (DynamicBuffer*)
     malloc(sizeof(DynamicBuffer));
-  buffer->used = (unsigned char*) malloc(initialSize * sizeof(unsigned char));
-  memset(buffer->used, FALSE, initialSize);
   buffer->value = (unsigned int**) calloc(initialSize, sizeof(unsigned int*));
   buffer->size = 0;
-  buffer->mask = initialSize - 1;
   buffer->capacity = initialSize;
 
-  buffer->key = (unsigned int*) calloc(initialSize, sizeof(unsigned int));
   buffer->valueLength = (unsigned int*) calloc(initialSize, sizeof(unsigned int));
+  buffer->valuePosition = (unsigned int*) calloc(initialSize, sizeof(unsigned int));
+  buffer->tailPointer = (unsigned long*) calloc(initialSize, sizeof(unsigned long));
   return buffer;
 }
 
 void destroyDynamicBuffer(DynamicBuffer* buffer) {
-  free(buffer->used);
-  free(buffer->key);
   int i;
   for(i = 0; i < buffer->capacity; i++) {
     if(buffer->value[i]) {
@@ -47,81 +43,70 @@ void destroyDynamicBuffer(DynamicBuffer* buffer) {
   }
   free(buffer->value);
   free(buffer->valueLength);
+  free(buffer->valuePosition);
+  free(buffer->tailPointer);
   free(buffer);
 }
 
-void shallowDestroyDynamicBuffer(DynamicBuffer* buffer) {
-  free(buffer->used);
-  free(buffer->key);
-  free(buffer->value);
-  free(buffer->valueLength);
-  free(buffer);
-}
-
-DynamicBuffer* expandDynamicBuffer(DynamicBuffer* buffer) {
-  DynamicBuffer* copy = createDynamicBuffer(buffer->capacity * 2);
-  copy->size = buffer->size;
-
-  int i = 0, j, pos, k;
-  for(j = buffer->size; j-- != 0;) {
-    while(!buffer->used[i]) i++;
-    pos = murmurHash3Int(buffer->key[i]) & copy->mask;
-    while(copy->used[pos]) {
-      pos = (pos + 1) & copy->mask;
-    }
-    copy->key[pos] = buffer->key[i];
-    copy->value[pos] = buffer->value[i];
-    copy->valueLength[pos] = buffer->valueLength[i];
-    copy->used[pos] = TRUE;
-    i++;
+void expandDynamicBuffer(DynamicBuffer* buffer) {
+  unsigned int** tempValue = (unsigned int**) realloc(buffer->value,
+      buffer->capacity * 2 * sizeof(unsigned int*));
+  unsigned int* tempValueLength = (unsigned int*) realloc(buffer->valueLength,
+      buffer->capacity * 2 * sizeof(unsigned int));
+  unsigned int* tempValuePosition = (unsigned int*) realloc(buffer->valuePosition,
+      buffer->capacity * 2 * sizeof(unsigned int));
+  unsigned long* tempTailPointer = (unsigned long*) realloc(buffer->tailPointer,
+      buffer->capacity * 2 * sizeof(unsigned long));
+  int i;
+  for(i = buffer->capacity; i < buffer->capacity * 2; i++) {
+    tempValue[i] = NULL;
+    tempValueLength[i] = 0;
+    tempValuePosition[i] = 0;
+    tempTailPointer[i] = UNDEFINED_POINTER;
   }
-  shallowDestroyDynamicBuffer(buffer);
-  return copy;
+
+  buffer->capacity *= 2;
+  buffer->value = tempValue;
+  buffer->valueLength = tempValueLength;
+  buffer->valuePosition = tempValuePosition;
+  buffer->tailPointer = tempTailPointer;
 }
 
 int containsKeyDynamicBuffer(DynamicBuffer* buffer, int k) {
-  int pos = murmurHash3Int(k) & buffer->mask;
-  while(buffer->used[pos]) {
-    if(buffer->key[pos] == k) {
-      return TRUE;
-    }
-    pos = (pos + 1) & buffer->mask;
-  }
-  return FALSE;
+  return buffer->value[k] != NULL;
 }
 
-int getDynamicBuffer(DynamicBuffer* buffer, int k, int** out) {
-  int pos = murmurHash3Int(k) & buffer->mask;
-  while(buffer->used[pos]) {
-    if(buffer->key[pos] == k) {
-      *out = buffer->value[pos];
-      return buffer->valueLength[pos];
-    }
-    pos = (pos + 1) & buffer->mask;
+int* getDynamicBuffer(DynamicBuffer* buffer, int k) {
+  while(k > buffer->capacity) {
+    expandDynamicBuffer(buffer);
   }
-  return -1;
+
+  return buffer->value[k];
 }
 
-void putDynamicBuffer(DynamicBuffer** buffer, int k, int* v, int vlen) {
-  int pos = murmurHash3Int(k) & (*buffer)->mask;
-  while((*buffer)->used[pos]) {
-    if((*buffer)->key[pos] == k) break;
-    pos = (pos + 1) & (*buffer)->mask;
+void putDynamicBuffer(DynamicBuffer* buffer, int k, int* v, int vlen) {
+  while(k > buffer->capacity) {
+    expandDynamicBuffer(buffer);
   }
-  if(!(*buffer)->used[pos]) {
-    (*buffer)->size++;
+
+  if(!buffer->value[k]) {
+    buffer->size++;
   } else {
-    free((*buffer)->value[pos]);
+    free(buffer->value[k]);
   }
-  (*buffer)->used[pos] = TRUE;
-  (*buffer)->key[pos] = k;
-  (*buffer)->value[pos] = v;
-  (*buffer)->valueLength[pos] = vlen;
+  buffer->value[k] = v;
+  buffer->valueLength[k] = vlen;
+}
 
-  if((*buffer)->size > BUFFER_LOAD_FACTOR * (*buffer)->capacity) {
-    DynamicBuffer* temp = expandDynamicBuffer((*buffer));
-    *buffer = temp;
+int nextIndexDynamicBuffer(DynamicBuffer* buffer, int pos) {
+  pos++;
+  while(!buffer->value[pos]) {
+    pos++;
+    if(pos >= buffer->capacity) {
+      return -1;
+    }
   }
+  return pos;
 }
 
 #endif
