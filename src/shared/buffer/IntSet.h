@@ -55,6 +55,15 @@ IntSet* expandIntSet(IntSet* set) {
   return copy;
 }
 
+int containsKey(IntSet* set, int k) {
+  int pos = k & (*set)->mask;
+  while(set->used[pos]) {
+    if(set->key[pos] == k) return 1;
+    pos = (pos + 1) & set->mask;
+  }
+  return 0;
+}
+
 void addIntSet(IntSet** set, int k) {
   int pos = k & (*set)->mask;
   while((*set)->used[pos]) {
