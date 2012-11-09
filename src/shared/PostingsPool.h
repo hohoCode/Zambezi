@@ -73,7 +73,8 @@ void destroyPostingsPool(PostingsPool* pool) {
 }
 
 long compressAndAdd(PostingsPool* pool, unsigned int* data,
-                    unsigned int len, long tailPointer) {
+                    unsigned int* tf, unsigned int* positions,
+                    unsigned int len, unsigned int plen, long tailPointer) {
   int lastSegment = -1;
   unsigned int lastOffset = 0;
   if(tailPointer != UNDEFINED_POINTER) {
@@ -82,28 +83,66 @@ long compressAndAdd(PostingsPool* pool, unsigned int* data,
   }
 
   unsigned int* block = (unsigned int*) calloc(BLOCK_SIZE*2, sizeof(unsigned int));
+  unsigned int* tfblock = (unsigned int*) calloc(BLOCK_SIZE*2, sizeof(unsigned int));
+  unsigned int* pblock = (unsigned int*) calloc(plen*4, sizeof(unsigned int));
   unsigned int csize = OPT4(data, len, block, 1);
+  unsigned int tfcsize = OPT4(tf, len, tfblock, 0);
 
-  if((csize + 4) > (MAX_INT_VALUE - pool->offset)) {
+  // compressing positions
+  unsigned int pcsize = 0;
+  int nb = plen / BLOCK_SIZE;
+  int res = plen % BLOCK_SIZE;
+  int i;
+
+  for(i = 0; i < nb; i++) {
+    int tempPcsize = OPT4(&positions[i * BLOCK_SIZE], BLOCK_SIZE, pblock+pcsize+1, 0);
+    pblock[pcsize] = tempPcsize;
+    pcsize += tempPcsize + 1;
+  }
+
+  if(res > 0) {
+    int tempPcsize = OPT4(&positions[nb * BLOCK_SIZE], res, pblock+pcsize+1, 0);
+    pblock[pcsize] = tempPcsize;
+    pcsize += tempPcsize + 1;
+    i++;
+  }
+  // end compressing positions
+
+  int reqspace = csize + tfcsize + pcsize + 7;
+  if(reqspace > (MAX_INT_VALUE - pool->offset)) {
     pool->segment++;
     pool->offset = 0;
   }
 
-  pool->pool[pool->segment][pool->offset] = csize;
-  pool->pool[pool->segment][pool->offset + 1] = len;
-  pool->pool[pool->segment][pool->offset + 2] = UNKNOWN_SEGMENT;
-  pool->pool[pool->segment][pool->offset + 3] = 0;
+  pool->pool[pool->segment][pool->offset] = UNKNOWN_SEGMENT;
+  pool->pool[pool->segment][pool->offset + 1] = 0;
+  pool->pool[pool->segment][pool->offset + 2] = len;
+  pool->pool[pool->segment][pool->offset + 3] = csize;
+
   memcpy(&pool->pool[pool->segment][pool->offset + 4],
          block, csize * sizeof(int));
 
+  pool->pool[pool->segment][pool->offset + 4 + csize] = tfcsize;
+  memcpy(&pool->pool[pool->segment][pool->offset + 5 + csize],
+         tfblock, tfcsize * sizeof(int));
+
+  pool->pool[pool->segment][pool->offset + 5 + csize + tfcsize] = plen;
+  pool->pool[pool->segment][pool->offset + 6 + csize + tfcsize] = i;
+  memcpy(&pool->pool[pool->segment][pool->offset + 7 + csize + tfcsize],
+         pblock, pcsize * sizeof(int));
+
   if(lastSegment >= 0) {
-    pool->pool[lastSegment][lastOffset + 2] = pool->segment;
-    pool->pool[lastSegment][lastOffset + 3] = pool->offset;
+    pool->pool[lastSegment][lastOffset] = pool->segment;
+    pool->pool[lastSegment][lastOffset + 1] = pool->offset;
   }
 
   long newPointer = ENCODE_POINTER(pool->segment, pool->offset);
-  pool->offset += (csize + 4);
+  pool->offset += reqspace;
+
   free(block);
+  free(tfblock);
+  free(pblock);
+
   return newPointer;
 }
 
@@ -111,15 +150,15 @@ long nextPointer(PostingsPool* pool, long pointer) {
   int pSegment = DECODE_SEGMENT(pointer);
   unsigned int pOffset = DECODE_OFFSET(pointer);
 
-  if(pool->pool[pSegment][pOffset + 2] == UNKNOWN_SEGMENT) {
+  if(pool->pool[pSegment][pOffset] == UNKNOWN_SEGMENT) {
     return UNDEFINED_POINTER;
   }
 
-  return ENCODE_POINTER(pool->pool[pSegment][pOffset + 2],
-                        pool->pool[pSegment][pOffset + 3]);
+  return ENCODE_POINTER(pool->pool[pSegment][pOffset],
+                        pool->pool[pSegment][pOffset + 1]);
 }
 
-int decompressBlock(PostingsPool* pool, unsigned int* outBlock, long pointer) {
+int decompressDocidBlock(PostingsPool* pool, unsigned int* outBlock, long pointer) {
   int pSegment = DECODE_SEGMENT(pointer);
   unsigned int pOffset = DECODE_OFFSET(pointer);
 
@@ -127,7 +166,7 @@ int decompressBlock(PostingsPool* pool, unsigned int* outBlock, long pointer) {
   unsigned int* block = &pool->pool[pSegment][pOffset + 4];
   detailed_p4_decode(outBlock, block, aux, 1);
 
-  return pool->pool[pSegment][pOffset + 1];
+  return pool->pool[pSegment][pOffset + 2];
 }
 
 #endif
