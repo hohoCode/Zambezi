@@ -43,13 +43,16 @@ int findBestB(unsigned int* docid) {
   return bestB;
 }
 
-unsigned int OPT4(unsigned int *doc_id, unsigned int list_size, unsigned int *aux)
+unsigned int OPT4(unsigned int *doc_id, unsigned int list_size, unsigned int *aux, int delta)
 {
   unsigned int size = 0;
   int ex_n = 0;
   int i;
-  for(i = list_size - 1; i > 0; i--) {
-    doc_id[i] -= doc_id[i - 1];
+
+  if(delta) {
+    for(i = list_size - 1; i > 0; i--) {
+      doc_id[i] -= doc_id[i - 1];
+    }
   }
 
   int b = findBestB(doc_id);

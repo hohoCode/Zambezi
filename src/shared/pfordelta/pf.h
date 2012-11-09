@@ -122,7 +122,7 @@ void pack(unsigned int *v, unsigned int b, unsigned int n, unsigned int *w)
 }
 
 /*modified p4decode */
-unsigned int *detailed_p4_decode(unsigned int *_p, unsigned int *_w,  unsigned int * all_array)
+unsigned int *detailed_p4_decode(unsigned int *_p, unsigned int *_w,  unsigned int * all_array, int delta)
 {
 
   int i, s;
@@ -157,8 +157,10 @@ unsigned int *detailed_p4_decode(unsigned int *_p, unsigned int *_w,  unsigned i
     }
   }
 
-  for(i = 1; i < BLOCK_SIZE && _p[i] != 0; i++) {
-    _p[i] += _p[i - 1];
+  if(delta) {
+    for(i = 1; i < BLOCK_SIZE && _p[i] != 0; i++) {
+      _p[i] += _p[i - 1];
+    }
   }
 
   return(_w);

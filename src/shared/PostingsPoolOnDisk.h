@@ -56,7 +56,7 @@ int decompressBlockOnDisk(PostingsPoolOnDisk* pool, unsigned int* outBlock, long
   fseek(pool->fp, COMPUTE_OFFSET(pSegment, pOffset + 4), SEEK_SET);
   fread(block, sizeof(int), csize, pool->fp);
 
-  detailed_p4_decode(outBlock, block, aux);
+  detailed_p4_decode(outBlock, block, aux, 1);
   free(block);
 
   return len;

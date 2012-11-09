@@ -82,7 +82,7 @@ long compressAndAdd(PostingsPool* pool, unsigned int* data,
   }
 
   unsigned int* block = (unsigned int*) calloc(BLOCK_SIZE*2, sizeof(unsigned int));
-  unsigned int csize = OPT4(data, len, block);
+  unsigned int csize = OPT4(data, len, block, 1);
 
   if((csize + 4) > (MAX_INT_VALUE - pool->offset)) {
     pool->segment++;
@@ -125,7 +125,7 @@ int decompressBlock(PostingsPool* pool, unsigned int* outBlock, long pointer) {
 
   unsigned int aux[BLOCK_SIZE*4];
   unsigned int* block = &pool->pool[pSegment][pOffset + 4];
-  detailed_p4_decode(outBlock, block, aux);
+  detailed_p4_decode(outBlock, block, aux, 1);
 
   return pool->pool[pSegment][pOffset + 1];
 }
