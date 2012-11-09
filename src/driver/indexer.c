@@ -15,7 +15,7 @@
 
 #define LENGTH 32*1024
 #define LINE_LENGTH 0x100000
-#define DF_CUTOFF 9
+#define DF_CUTOFF 1//9
 #define POS_PER_DOCID 10
 #define EXPANSION_RATE 2
 #define NUMBER_OF_POOLS 6
@@ -109,7 +109,7 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
 
     data->pbuffer->valuePosition[id]++;
     data->pbuffer->value[id][ps]++;
-    curtfbuffer[data->tfbuffer->valuePosition[id]]++;
+    curtfBuffer[data->tfbuffer->valuePosition[id]]++;
 
     position++;
     line += consumed;
@@ -187,12 +187,12 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
 
       if((data->buffer->valueLength[id] < data->maxBlocks) && data->expansionEnabled) {
         int newLen = data->buffer->valueLength[id] * EXPANSION_RATE;
-        int* newBuffer = (int*) realloc(curBuffer, newLen, sizeof(int));
+        int* newBuffer = (int*) realloc(curBuffer, newLen * sizeof(int));
         curBuffer = newBuffer;
         data->buffer->value[id] = curBuffer;
         data->buffer->valueLength[id] = newLen;
 
-        int* newTfBuffer = (int*) realloc(data->tfbuffer->value[id], newLen, sizeof(int));
+        int* newTfBuffer = (int*) realloc(data->tfbuffer->value[id], newLen * sizeof(int));
         memset(newTfBuffer, 0, newLen * sizeof(int));
         data->tfbuffer->value[id] = newTfBuffer;
         data->tfbuffer->valueLength[id] = newLen;
@@ -308,20 +308,28 @@ int main (int argc, char** args) {
     fflush(stdout);
   }
 
+  unsigned int termsInBuffer = 0;
   int term = -1;
   while((term = nextIndexDynamicBuffer(data->buffer, term, BLOCK_SIZE)) != -1) {
+    printf("  %d\n", term);
+    termsInBuffer++;
     int pos = data->buffer->valuePosition[term];
 
     if(pos > 0) {
       int nb = pos / BLOCK_SIZE;
       int res = pos % BLOCK_SIZE;
+      int ps = 0;
 
       int* curBuffer = data->buffer->value[term];
       long pointer = data->buffer->tailPointer[term];
       int j;
       for(j = 0; j < nb; j++) {
         pointer = compressAndAdd(pool, &curBuffer[j * BLOCK_SIZE],
-                                 BLOCK_SIZE, pointer);
+                                 &data->tfbuffer->value[term][j * BLOCK_SIZE],
+                                 &data->pbuffer->value[term][ps + 1],
+                                 BLOCK_SIZE, data->pbuffer->value[term][ps],
+                                 pointer);
+        ps += data->pbuffer->value[term][ps] + 1;
         if(getFixedLongCounter(data->startPointers, term) == UNDEFINED_POINTER) {
           setFixedLongCounter(data->startPointers, term, pointer);
         }
@@ -329,7 +337,10 @@ int main (int argc, char** args) {
 
       if(res > 0) {
         pointer = compressAndAdd(pool, &curBuffer[nb * BLOCK_SIZE],
-                                 res, pointer);
+                                 &data->tfbuffer->value[term][nb * BLOCK_SIZE],
+                                 &data->pbuffer->value[term][ps + 1],
+                                 res, data->pbuffer->value[term][ps],
+                                 pointer);
         if(getFixedLongCounter(data->startPointers, term) == UNDEFINED_POINTER) {
           setFixedLongCounter(data->startPointers, term, pointer);
         }
@@ -337,33 +348,9 @@ int main (int argc, char** args) {
     }
   }
 
-  PostingsPool* contiguousPool;
-  FixedLongCounter* contiguousStartPointers;
-  if(contiguous) {
-    contiguousPool = createPostingsPool(NUMBER_OF_POOLS);
-    contiguousStartPointers = createFixedLongCounter(DEFAULT_VOCAB_SIZE,
-                                                     UNDEFINED_POINTER);
-    unsigned int* outBlock = (unsigned int*) calloc(BLOCK_SIZE*2, sizeof(unsigned int));
-    term = -1;
-    while((term = nextIndexFixedLongCounter(data->startPointers, term)) != -1) {
-      long tailPointer = UNDEFINED_POINTER;
-      long pointer = data->startPointers->counter[term];
-      while(pointer != UNDEFINED_POINTER) {
-        memset(outBlock, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
-        int num = decompressDocidBlock(pool, outBlock, pointer);
-        tailPointer = compressAndAdd(contiguousPool, outBlock, num, tailPointer);
-        pointer = nextPointer(pool, pointer);
-        if(getFixedLongCounter(contiguousStartPointers, term) == UNDEFINED_POINTER) {
-          setFixedLongCounter(contiguousStartPointers, term, tailPointer);
-        }
-      }
-    }
-    free(outBlock);
-  }
-
   gettimeofday(&end, NULL);
   printf("Time: %6.0f\n", ((float) (end.tv_sec - start.tv_sec)));
-  printf("Terms in buffer: %u\n", data->buffer->size);
+  printf("Terms in buffer: %u\n", termsInBuffer);
   fflush(stdout);
 
   char dicPath[1024];
@@ -381,11 +368,7 @@ int main (int argc, char** args) {
   strcat(indexPath, INDEX_FILE);
 
   ofp = fopen(indexPath, "wb");
-  if(contiguous) {
-    writePostingsPool(contiguousPool, ofp);
-  } else {
-    writePostingsPool(pool, ofp);
-  }
+  writePostingsPool(pool, ofp);
   fclose(ofp);
 
   char pointerPath[1024];
@@ -394,34 +377,18 @@ int main (int argc, char** args) {
   strcat(pointerPath, POINTER_FILE);
 
   ofp = fopen(pointerPath, "wb");
-  if(contiguous) {
-    int size = sizeFixedLongCounter(contiguousStartPointers);
-    fwrite(&size, sizeof(unsigned int), 1, ofp);
-    term = -1;
-    while((term = nextIndexFixedLongCounter(contiguousStartPointers, term)) != -1) {
-      fwrite(&term, sizeof(int), 1, ofp);
-      fwrite(&data->df->counter[term], sizeof(int), 1, ofp);
-      fwrite(&contiguousStartPointers->counter[term], sizeof(long), 1, ofp);
-    }
-  } else {
-    int size = sizeFixedLongCounter(data->startPointers);
-    fwrite(&size, sizeof(unsigned int), 1, ofp);
-    term = -1;
-    while((term = nextIndexFixedLongCounter(data->startPointers, term)) != -1) {
-      fwrite(&term, sizeof(int), 1, ofp);
-      fwrite(&data->df->counter[term], sizeof(int), 1, ofp);
-      fwrite(&data->startPointers->counter[term], sizeof(long), 1, ofp);
-    }
+  int size = sizeFixedLongCounter(data->startPointers);
+  fwrite(&size, sizeof(unsigned int), 1, ofp);
+  term = -1;
+  while((term = nextIndexFixedLongCounter(data->startPointers, term)) != -1) {
+    fwrite(&term, sizeof(int), 1, ofp);
+    fwrite(&data->df->counter[term], sizeof(int), 1, ofp);
+    fwrite(&data->startPointers->counter[term], sizeof(long), 1, ofp);
   }
   fclose(ofp);
 
   destroyPostingsPool(pool);
   destroyIndexingData(data);
-  if(contiguous) {
-    destroyPostingsPool(contiguousPool);
-    destroyFixedLongCounter(contiguousStartPointers);
-  }
-
   free(oldBuffer);
   free(iobuffer);
   free(line);

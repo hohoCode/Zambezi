@@ -18,14 +18,12 @@ struct DynamicBuffer {
   unsigned int* valuePosition;
   unsigned long* tailPointer;
   unsigned int capacity;
-  unsigned int size;
 };
 
 DynamicBuffer* createDynamicBuffer(unsigned int initialSize) {
   DynamicBuffer* buffer = (DynamicBuffer*)
     malloc(sizeof(DynamicBuffer));
   buffer->value = (unsigned int**) calloc(initialSize, sizeof(unsigned int*));
-  buffer->size = 0;
   buffer->capacity = initialSize;
 
   buffer->valueLength = (unsigned int*) calloc(initialSize, sizeof(unsigned int));
@@ -89,16 +87,13 @@ void putDynamicBuffer(DynamicBuffer* buffer, int k, int* v, int vlen) {
     expandDynamicBuffer(buffer);
   }
 
-  if(!buffer->value[k]) {
-    buffer->size++;
-  }
   buffer->value[k] = v;
   buffer->valueLength[k] = vlen;
 }
 
 int nextIndexDynamicBuffer(DynamicBuffer* buffer, int pos, int minLength) {
   pos++;
-  while(buffer->valueLength[pos] <= minLength) {
+  while(buffer->valueLength[pos] < minLength) {
     pos++;
     if(pos >= buffer->capacity) {
       return -1;

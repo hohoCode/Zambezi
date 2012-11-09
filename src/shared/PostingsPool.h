@@ -75,6 +75,16 @@ void destroyPostingsPool(PostingsPool* pool) {
 long compressAndAdd(PostingsPool* pool, unsigned int* data,
                     unsigned int* tf, unsigned int* positions,
                     unsigned int len, unsigned int plen, long tailPointer) {
+
+  int idx = 0;
+  for(idx = 0; idx < len; idx++) {
+    printf("docid:%d tf:%d\n", data[idx], tf[idx]);
+  }
+  for(idx = 0; idx < plen; idx++) {
+    printf("%d ", positions[idx]);
+  }
+  printf("\n");
+
   int lastSegment = -1;
   unsigned int lastOffset = 0;
   if(tailPointer != UNDEFINED_POINTER) {
