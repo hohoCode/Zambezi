@@ -75,16 +75,6 @@ void destroyPostingsPool(PostingsPool* pool) {
 long compressAndAdd(PostingsPool* pool, unsigned int* data,
                     unsigned int* tf, unsigned int* positions,
                     unsigned int len, unsigned int plen, long tailPointer) {
-
-  int idx = 0;
-  for(idx = 0; idx < len; idx++) {
-    printf("docid:%d tf:%d\n", data[idx], tf[idx]);
-  }
-  for(idx = 0; idx < plen; idx++) {
-    printf("%d ", positions[idx]);
-  }
-  printf("\n");
-
   int lastSegment = -1;
   unsigned int lastOffset = 0;
   if(tailPointer != UNDEFINED_POINTER) {
@@ -92,9 +82,10 @@ long compressAndAdd(PostingsPool* pool, unsigned int* data,
     lastOffset = DECODE_OFFSET(tailPointer);
   }
 
+  int pblocksize = 3 * ((plen / BLOCK_SIZE) + 1 ) * BLOCK_SIZE;
   unsigned int* block = (unsigned int*) calloc(BLOCK_SIZE*2, sizeof(unsigned int));
   unsigned int* tfblock = (unsigned int*) calloc(BLOCK_SIZE*2, sizeof(unsigned int));
-  unsigned int* pblock = (unsigned int*) calloc(plen*4, sizeof(unsigned int));
+  unsigned int* pblock = (unsigned int*) calloc(pblocksize, sizeof(unsigned int));
   unsigned int csize = OPT4(data, len, block, 1);
   unsigned int tfcsize = OPT4(tf, len, tfblock, 0);
 
@@ -105,45 +96,46 @@ long compressAndAdd(PostingsPool* pool, unsigned int* data,
   int i;
 
   for(i = 0; i < nb; i++) {
-    int tempPcsize = OPT4(&positions[i * BLOCK_SIZE], BLOCK_SIZE, pblock+pcsize+1, 0);
+    int tempPcsize = OPT4(&positions[i * BLOCK_SIZE], BLOCK_SIZE, &pblock[pcsize+1], 0);
     pblock[pcsize] = tempPcsize;
     pcsize += tempPcsize + 1;
   }
 
   if(res > 0) {
-    int tempPcsize = OPT4(&positions[nb * BLOCK_SIZE], res, pblock+pcsize+1, 0);
+    int tempPcsize = OPT4(&positions[nb * BLOCK_SIZE], res, &pblock[pcsize+1], 0);
     pblock[pcsize] = tempPcsize;
     pcsize += tempPcsize + 1;
     i++;
   }
   // end compressing positions
 
-  int reqspace = csize + tfcsize + pcsize + 7;
+  int reqspace = csize + tfcsize + pcsize + 8;
   if(reqspace > (MAX_INT_VALUE - pool->offset)) {
     pool->segment++;
     pool->offset = 0;
   }
 
-  pool->pool[pool->segment][pool->offset] = UNKNOWN_SEGMENT;
-  pool->pool[pool->segment][pool->offset + 1] = 0;
-  pool->pool[pool->segment][pool->offset + 2] = len;
-  pool->pool[pool->segment][pool->offset + 3] = csize;
+  pool->pool[pool->segment][pool->offset] = reqspace;
+  pool->pool[pool->segment][pool->offset + 1] = UNKNOWN_SEGMENT;
+  pool->pool[pool->segment][pool->offset + 2] = 0;
+  pool->pool[pool->segment][pool->offset + 3] = len;
+  pool->pool[pool->segment][pool->offset + 4] = csize;
 
-  memcpy(&pool->pool[pool->segment][pool->offset + 4],
+  memcpy(&pool->pool[pool->segment][pool->offset + 5],
          block, csize * sizeof(int));
 
-  pool->pool[pool->segment][pool->offset + 4 + csize] = tfcsize;
-  memcpy(&pool->pool[pool->segment][pool->offset + 5 + csize],
+  pool->pool[pool->segment][pool->offset + 5 + csize] = tfcsize;
+  memcpy(&pool->pool[pool->segment][pool->offset + 6 + csize],
          tfblock, tfcsize * sizeof(int));
 
-  pool->pool[pool->segment][pool->offset + 5 + csize + tfcsize] = plen;
-  pool->pool[pool->segment][pool->offset + 6 + csize + tfcsize] = i;
-  memcpy(&pool->pool[pool->segment][pool->offset + 7 + csize + tfcsize],
+  pool->pool[pool->segment][pool->offset + 6 + csize + tfcsize] = plen;
+  pool->pool[pool->segment][pool->offset + 7 + csize + tfcsize] = i;
+  memcpy(&pool->pool[pool->segment][pool->offset + 8 + csize + tfcsize],
          pblock, pcsize * sizeof(int));
 
   if(lastSegment >= 0) {
-    pool->pool[lastSegment][lastOffset] = pool->segment;
-    pool->pool[lastSegment][lastOffset + 1] = pool->offset;
+    pool->pool[lastSegment][lastOffset + 1] = pool->segment;
+    pool->pool[lastSegment][lastOffset + 2] = pool->offset;
   }
 
   long newPointer = ENCODE_POINTER(pool->segment, pool->offset);
@@ -160,12 +152,12 @@ long nextPointer(PostingsPool* pool, long pointer) {
   int pSegment = DECODE_SEGMENT(pointer);
   unsigned int pOffset = DECODE_OFFSET(pointer);
 
-  if(pool->pool[pSegment][pOffset] == UNKNOWN_SEGMENT) {
+  if(pool->pool[pSegment][pOffset + 1] == UNKNOWN_SEGMENT) {
     return UNDEFINED_POINTER;
   }
 
-  return ENCODE_POINTER(pool->pool[pSegment][pOffset],
-                        pool->pool[pSegment][pOffset + 1]);
+  return ENCODE_POINTER(pool->pool[pSegment][pOffset + 1],
+                        pool->pool[pSegment][pOffset + 2]);
 }
 
 int decompressDocidBlock(PostingsPool* pool, unsigned int* outBlock, long pointer) {
@@ -173,10 +165,10 @@ int decompressDocidBlock(PostingsPool* pool, unsigned int* outBlock, long pointe
   unsigned int pOffset = DECODE_OFFSET(pointer);
 
   unsigned int aux[BLOCK_SIZE*4];
-  unsigned int* block = &pool->pool[pSegment][pOffset + 4];
+  unsigned int* block = &pool->pool[pSegment][pOffset + 5];
   detailed_p4_decode(outBlock, block, aux, 1);
 
-  return pool->pool[pSegment][pOffset + 2];
+  return pool->pool[pSegment][pOffset + 3];
 }
 
 #endif
