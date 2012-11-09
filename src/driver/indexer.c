@@ -29,7 +29,6 @@ struct IndexingData {
   DynamicBuffer* buffer;
   FixedLongCounter* startPointers;
   FixedIntCounter* df;
-  FixedBuffer* firstOccur;
   IntSet* uniqueTerms;
   int expansionEnabled;
   int maxBlocks;
@@ -40,7 +39,6 @@ void destroyIndexingData(IndexingData* data) {
   destroyDynamicBuffer(data->buffer);
   destroyFixedLongCounter(data->startPointers);
   destroyFixedIntCounter(data->df);
-  destroyFixedBuffer(data->firstOccur);
   destroyIntSet(data->uniqueTerms);
   free(data);
 }
@@ -81,16 +79,18 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
 
     int df = getFixedIntCounter(data->df, id);
     if(df < DF_CUTOFF) {
-      setFixedBuffer(data->firstOccur, id, df, docid);
-      incrementFixedIntCounter(data->df, id);
+      int* curBuffer = getDynamicBuffer(data->buffer, id);
+      if(!curBuffer) {
+        curBuffer = (int*) calloc(DF_CUTOFF, sizeof(int));
+      }
+      data->buffer->value[id][df] = docid;
+      data->df->counter[id]++;
       continue;
     }
 
-    int* curBuffer = getDynamicBuffer(data->buffer, id);
-    if(!curBuffer) {
-      curBuffer = (int*) calloc(BLOCK_SIZE, sizeof(int));
-      memcpy(curBuffer, getStartFixedBuffer(data->firstOccur, id),
-             DF_CUTOFF * sizeof(int));
+    int* curBuffer = data->buffer->value[id];
+    if(data->buffer->valueLength[id] < BLOCK_SIZE) {
+      curBuffer = (int*) realloc(curBuffer, BLOCK_SIZE * sizeof(int));
       putDynamicBuffer(data->buffer, id, curBuffer, BLOCK_SIZE);
       data->buffer->valuePosition[id] = DF_CUTOFF;
     }
@@ -154,8 +154,7 @@ int main (int argc, char** args) {
   int contiguous = atoi(args[3]);
 
   IndexingData* data = (IndexingData*) malloc(sizeof(IndexingData));
-  data->buffer = createDynamicBuffer(8388608);
-  data->firstOccur = createFixedBuffer(DEFAULT_VOCAB_SIZE, DF_CUTOFF);
+  data->buffer = createDynamicBuffer(DEFAULT_VOCAB_SIZE);
   data->dic = inithashtable();
   data->df = createFixedIntCounter(DEFAULT_VOCAB_SIZE, 0);
   data->startPointers = createFixedLongCounter(DEFAULT_VOCAB_SIZE, UNDEFINED_POINTER);
@@ -231,7 +230,7 @@ int main (int argc, char** args) {
   }
 
   int term = -1;
-  while((term = nextIndexDynamicBuffer(data->buffer, term)) != -1) {
+  while((term = nextIndexDynamicBuffer(data->buffer, term, BLOCK_SIZE)) != -1) {
     int pos = data->buffer->valuePosition[term];
 
     if(pos > 0) {

@@ -98,9 +98,9 @@ void putDynamicBuffer(DynamicBuffer* buffer, int k, int* v, int vlen) {
   buffer->valueLength[k] = vlen;
 }
 
-int nextIndexDynamicBuffer(DynamicBuffer* buffer, int pos) {
+int nextIndexDynamicBuffer(DynamicBuffer* buffer, int pos, int minLength) {
   pos++;
-  while(!buffer->value[pos]) {
+  while(buffer->valueLength[pos] <= minLength) {
     pos++;
     if(pos >= buffer->capacity) {
       return -1;
