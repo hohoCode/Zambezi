@@ -91,8 +91,9 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
     }
     if(data->pbuffer->valueLength[id] <= data->pbuffer->valuePosition[id] + 1) {
       int len = data->pbuffer->valueLength[id];
-      int* tempCurBuffer = (int*) realloc(curBuffer, len * 2 * sizeof(int));
-      memset(tempCurBuffer+len, 0, len * sizeof(int));
+      int newLen = 2 * ((len / BLOCK_SIZE) + 1) * BLOCK_SIZE + data->maxBlocks;
+      int* tempCurBuffer = (int*) realloc(curBuffer, newLen * sizeof(int));
+      memset(tempCurBuffer+len, 0, (newLen-len) * sizeof(int));
       data->pbuffer->value[id] = tempCurBuffer;
       data->pbuffer->valueLength[id] = len * 2;
       curBuffer = tempCurBuffer;
@@ -151,7 +152,7 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
 
       //expand pbuffer
       int origLen = data->pbuffer->valueLength[id];
-      int len = 2 * ((origLen / BLOCK_SIZE) + 1) * BLOCK_SIZE;
+      int len = 2 * ((origLen / BLOCK_SIZE) + 1) * BLOCK_SIZE + data->maxBlocks;
       int* tempPBuffer = (int*) realloc(data->pbuffer->value[id], len * sizeof(int));
       memset(tempPBuffer+origLen, 0, (len - origLen) * sizeof(int));
       data->pbuffer->value[id] = tempPBuffer;
@@ -207,6 +208,9 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
       }
 
       memset(curBuffer, 0, data->buffer->valueLength[id] * sizeof(int));
+      memset(data->tfbuffer->value[id], 0, data->tfbuffer->valueLength[id] * sizeof(int));
+      memset(data->pbuffer->value[id], 0, data->pbuffer->valueLength[id] * sizeof(int));
+
       data->buffer->valuePosition[id] = 0;
       data->tfbuffer->valuePosition[id] = 0;
       data->pbuffer->valuePosition[id] = 1;

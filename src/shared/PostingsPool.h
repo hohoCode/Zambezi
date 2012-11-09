@@ -102,10 +102,13 @@ long compressAndAdd(PostingsPool* pool, unsigned int* data,
   }
 
   if(res > 0) {
-    int tempPcsize = OPT4(&positions[nb * BLOCK_SIZE], res, &pblock[pcsize+1], 0);
+    unsigned int* a = (unsigned int*) calloc(BLOCK_SIZE, sizeof(unsigned int));
+    memcpy(a, &positions[nb * BLOCK_SIZE], res);
+    int tempPcsize = OPT4(a, res, &pblock[pcsize+1], 0);
     pblock[pcsize] = tempPcsize;
     pcsize += tempPcsize + 1;
     i++;
+    free(a);
   }
   // end compressing positions
 
