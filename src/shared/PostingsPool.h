@@ -174,4 +174,47 @@ int decompressDocidBlock(PostingsPool* pool, unsigned int* outBlock, long pointe
   return pool->pool[pSegment][pOffset + 3];
 }
 
+long readPostingsForTerm(PostingsPool* pool, long pointer, FILE* fp) {
+  int sSegment = -1, sOffset = -1;
+  int ppSegment = -1, ppOffset = -1;
+
+  while(pointer != UNDEFINED_POINTER) {
+    int pSegment = DECODE_SEGMENT(pointer);
+    unsigned int pOffset = DECODE_OFFSET(pointer);
+    long next = nextPointer(pool, pointer);
+    long pos = ((pSegment * (unsigned long) MAX_INT_VALUE) + pOffset) * 4 + 8;
+
+    fseek(fp, pos, SEEK_SET);
+    int reqspace = 0;
+    fread(&reqspace, sizeof(int), 1, fp);
+
+    if(reqspace > (MAX_INT_VALUE - pool->offset)) {
+      pool->segment++;
+      pool->offset = 0;
+    }
+
+    pool->pool[pool->segment][pool->offset] = reqspace;
+    fread(&pool->pool[pool->segment][pool->offset + 1], sizeof(unsigned int),
+          reqspace - 1, fp);
+
+    if(ppSegment != -1) {
+      pool->pool[ppSegment][ppOffset + 1] = pool->segment;
+      pool->pool[ppSegment][ppOffset + 2] = pool->offset;
+    }
+
+    if(sSegment == -1) {
+      sSegment = pool->segment;
+      sOffset = pool->offset;
+    }
+
+    ppSegment = pool->segment;
+    ppOffset = pool->offset;
+
+    pool->offset += reqspace;
+    pointer = next;
+  }
+
+  return ENCODE_POINTER(sSegment, sOffset);
+}
+
 #endif
