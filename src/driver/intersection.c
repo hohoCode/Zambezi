@@ -21,8 +21,8 @@ int* intersectPostingsLists(PostingsPool* pool, long a, long b, int minDf) {
   unsigned int* dataA = (unsigned int*) calloc(BLOCK_SIZE * 2, sizeof(unsigned int));
   unsigned int* dataB = (unsigned int*) calloc(BLOCK_SIZE * 2, sizeof(unsigned int));
 
-  int cA = decompressBlock(pool, dataA, a);
-  int cB = decompressBlock(pool, dataB, b);
+  int cA = decompressDocidBlock(pool, dataA, a);
+  int cB = decompressDocidBlock(pool, dataB, b);
   int iSet = 0, iA = 0, iB = 0;
 
   while(a != UNDEFINED_POINTER && b != UNDEFINED_POINTER) {
@@ -38,7 +38,7 @@ int* intersectPostingsLists(PostingsPool* pool, long a, long b, int minDf) {
         break;
       }
       memset(dataA, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
-      cA = decompressBlock(pool, dataA, a);
+      cA = decompressDocidBlock(pool, dataA, a);
       iA = 0;
     }
     if(iB == cB) {
@@ -47,7 +47,7 @@ int* intersectPostingsLists(PostingsPool* pool, long a, long b, int minDf) {
         break;
       }
       memset(dataB, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
-      cB = decompressBlock(pool, dataB, b);
+      cB = decompressDocidBlock(pool, dataB, b);
       iB = 0;
     }
 
@@ -63,7 +63,7 @@ int* intersectPostingsLists(PostingsPool* pool, long a, long b, int minDf) {
             break;
           }
           memset(dataA, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
-          cA = decompressBlock(pool, dataA, a);
+          cA = decompressDocidBlock(pool, dataA, a);
           iA = 0;
         }
         if(dataA[cA - 1] < dataB[iB]) {
@@ -82,7 +82,7 @@ int* intersectPostingsLists(PostingsPool* pool, long a, long b, int minDf) {
             break;
           }
           memset(dataB, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
-          cB = decompressBlock(pool, dataB, b);
+          cB = decompressDocidBlock(pool, dataB, b);
           iB = 0;
         }
         if(dataB[cB - 1] < dataA[iA]) {
@@ -104,7 +104,7 @@ int* intersectPostingsLists(PostingsPool* pool, long a, long b, int minDf) {
 
 int intersectSetPostingsList(PostingsPool* pool, long a, int* currentSet, int len) {
   unsigned int* data = (unsigned int*) calloc(BLOCK_SIZE * 2, sizeof(unsigned int));
-  int c = decompressBlock(pool, data, a);
+  int c = decompressDocidBlock(pool, data, a);
   int iSet = 0, iCurrent = 0, i = 0;
 
   while(a != UNDEFINED_POINTER && iCurrent < len) {
@@ -123,7 +123,7 @@ int intersectSetPostingsList(PostingsPool* pool, long a, int* currentSet, int le
         break;
       }
       memset(data, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
-      c = decompressBlock(pool, data, a);
+      c = decompressDocidBlock(pool, data, a);
       i = 0;
     }
     if(iCurrent == len) {
@@ -145,7 +145,7 @@ int intersectSetPostingsList(PostingsPool* pool, long a, int* currentSet, int le
             break;
           }
           memset(data, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
-          c = decompressBlock(pool, data, a);
+          c = decompressDocidBlock(pool, data, a);
           i = 0;
         }
         if(data[c - 1] < currentSet[iCurrent]) {
@@ -181,7 +181,7 @@ int* intersect(PostingsPool* pool, long* startPointers, int len, int minDf) {
     long t = startPointers[0];
     while(t != UNDEFINED_POINTER) {
       memset(block, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
-      int c = decompressBlock(pool, block, t);
+      int c = decompressDocidBlock(pool, block, t);
       memcpy(&set[iSet], block, c * sizeof(int));
       iSet += c;
       t = nextPointer(pool, t);

@@ -16,8 +16,9 @@
 #define LENGTH 32*1024
 #define LINE_LENGTH 0x100000
 #define DF_CUTOFF 9
+#define POS_PER_DOCID 10
 #define EXPANSION_RATE 2
-#define NUMBER_OF_POOLS 2
+#define NUMBER_OF_POOLS 6
 #define INDEX_FILE "index"
 #define POINTER_FILE "pointers"
 #define DICTIONARY_FILE "dictionary"
@@ -27,8 +28,11 @@ typedef struct IndexingData IndexingData;
 struct IndexingData {
   Dictionary** dic;
   DynamicBuffer* buffer;
+  DynamicBuffer* tfbuffer;
+  DynamicBuffer* pbuffer;
   FixedLongCounter* startPointers;
   FixedIntCounter* df;
+  FixedIntCounter* psum;
   IntSet* uniqueTerms;
   int expansionEnabled;
   int maxBlocks;
@@ -37,8 +41,11 @@ struct IndexingData {
 void destroyIndexingData(IndexingData* data) {
   destroyhashtable(data->dic);
   destroyDynamicBuffer(data->buffer);
+  destroyDynamicBuffer(data->tfbuffer);
+  destroyDynamicBuffer(data->pbuffer);
   destroyFixedLongCounter(data->startPointers);
   destroyFixedIntCounter(data->df);
+  destroyFixedIntCounter(data->psum);
   destroyIntSet(data->uniqueTerms);
   free(data);
 }
@@ -61,14 +68,50 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
   docid = atoi(line);
   line += consumed;
 
+  int position = 1;
   clearIntSet(data->uniqueTerms);
   grabword(line, ' ', &consumed);
   while(consumed > 0) {
     int id = hashinsert(data->dic, line, termid);
-    addIntSet(&data->uniqueTerms, id);
+    int added = addIntSet(&data->uniqueTerms, id);
     if(id == termid) {
       termid++;
     }
+
+    int* curtfBuffer = getDynamicBuffer(data->tfbuffer, id);
+    int* curBuffer = getDynamicBuffer(data->pbuffer, id);
+    int ps = getFixedIntCounter(data->psum, id);
+    if(!curBuffer) {
+      curBuffer = (int*) calloc(DF_CUTOFF * POS_PER_DOCID, sizeof(int));
+      putDynamicBuffer(data->pbuffer, id, curBuffer, DF_CUTOFF * POS_PER_DOCID);
+      data->pbuffer->valuePosition[id] = 1;
+
+      curtfBuffer = (int*) calloc(DF_CUTOFF, sizeof(int));
+      putDynamicBuffer(data->tfbuffer, id, curtfBuffer, DF_CUTOFF);
+    }
+    if(data->pbuffer->valueLength[id] <= data->pbuffer->valuePosition[id] + 1) {
+      int len = data->pbuffer->valueLength[id];
+      int* tempCurBuffer = (int*) realloc(curBuffer, len * 2 * sizeof(int));
+      memset(tempCurBuffer+len, 0, len * sizeof(int));
+      data->pbuffer->value[id] = tempCurBuffer;
+      data->pbuffer->valueLength[id] = len * 2;
+      curBuffer = tempCurBuffer;
+    }
+
+    int pbufferpos = data->pbuffer->valuePosition[id];
+    if(!added) {
+      curBuffer[pbufferpos] = position - curBuffer[pbufferpos];
+      pbufferpos++;
+    } else {
+      curBuffer[pbufferpos++] = position;
+    }
+    curBuffer[pbufferpos] = position;
+
+    data->pbuffer->valuePosition[id]++;
+    data->pbuffer->value[id][ps]++;
+    curtfbuffer[data->tfbuffer->valuePosition[id]]++;
+
+    position++;
     line += consumed;
     grabword(line, ' ', &consumed);
   }
@@ -77,11 +120,15 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
   while((keyPos = nextIndexIntSet(data->uniqueTerms, keyPos)) != -1) {
     int id = data->uniqueTerms->key[keyPos];
 
+    data->pbuffer->value[id][data->pbuffer->valuePosition[id]] = 0;
+    data->tfbuffer->valuePosition[id]++;
+
     int df = getFixedIntCounter(data->df, id);
     if(df < DF_CUTOFF) {
       int* curBuffer = getDynamicBuffer(data->buffer, id);
       if(!curBuffer) {
         curBuffer = (int*) calloc(DF_CUTOFF, sizeof(int));
+        putDynamicBuffer(data->buffer, id, curBuffer, DF_CUTOFF);
       }
       data->buffer->value[id][df] = docid;
       data->df->counter[id]++;
@@ -90,28 +137,47 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
 
     int* curBuffer = data->buffer->value[id];
     if(data->buffer->valueLength[id] < BLOCK_SIZE) {
-      curBuffer = (int*) realloc(curBuffer, BLOCK_SIZE * sizeof(int));
-      putDynamicBuffer(data->buffer, id, curBuffer, BLOCK_SIZE);
+      int* tempCurBuffer = (int*) realloc(curBuffer, BLOCK_SIZE * sizeof(int));
+      memset(tempCurBuffer+DF_CUTOFF, 0, (BLOCK_SIZE - DF_CUTOFF) * sizeof(int));
+      curBuffer = tempCurBuffer;
+      data->buffer->value[id] = tempCurBuffer;
+      data->buffer->valueLength[id] = BLOCK_SIZE;
       data->buffer->valuePosition[id] = DF_CUTOFF;
+
+      //expand tfbuffer
+      int* tempTfBuffer= (int*) realloc(data->tfbuffer->value[id], BLOCK_SIZE * sizeof(int));
+      memset(tempTfBuffer+DF_CUTOFF, 0, (BLOCK_SIZE - DF_CUTOFF) * sizeof(int));
+      data->tfbuffer->value[id] = tempTfBuffer;
     }
 
     curBuffer[data->buffer->valuePosition[id]++] = docid;
-    incrementFixedIntCounter(data->df, id);
+    data->df->counter[id]++;
+
+    if(data->buffer->valuePosition[id] % BLOCK_SIZE == 0) {
+      data->psum->counter[id] += data->pbuffer->valuePosition[id]++;
+    }
 
     if(data->buffer->valuePosition[id] >= data->buffer->valueLength[id]) {
       int nb = data->buffer->valueLength[id] / BLOCK_SIZE;
       long pointer = data->buffer->tailPointer[id];
       if(nb == 1) {
-        pointer = compressAndAdd(pool, curBuffer, BLOCK_SIZE, pointer);
+        pointer = compressAndAdd(pool, curBuffer, data->tfbuffer->value[id],
+                                 &data->pbuffer->value[id][1],
+                                 BLOCK_SIZE, data->pbuffer->value[id][0],
+                                 pointer);
 
         if(getFixedLongCounter(data->startPointers, id) == UNDEFINED_POINTER) {
           setFixedLongCounter(data->startPointers, id, pointer);
         }
       } else {
-        int j;
+        int j, ps = 0;
         for(j = 0; j < nb; j++) {
           pointer = compressAndAdd(pool, &curBuffer[j * BLOCK_SIZE],
-                                   BLOCK_SIZE, pointer);
+                                   &data->tfbuffer->value[id][j * BLOCK_SIZE],
+                                   &data->pbuffer->value[id][ps + 1],
+                                   BLOCK_SIZE, data->pbuffer->value[id][ps],
+                                   pointer);
+          ps += data->pbuffer->value[id][ps] + 1;
           if(getFixedLongCounter(data->startPointers, id) == UNDEFINED_POINTER) {
             setFixedLongCounter(data->startPointers, id, pointer);
           }
@@ -121,12 +187,22 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
 
       if((data->buffer->valueLength[id] < data->maxBlocks) && data->expansionEnabled) {
         int newLen = data->buffer->valueLength[id] * EXPANSION_RATE;
-        int* newBuffer = (int*) calloc(newLen, sizeof(int));
-        putDynamicBuffer(data->buffer, id, newBuffer, newLen);
-      } else {
-        memset(curBuffer, 0, data->buffer->valueLength[id] * sizeof(int));
+        int* newBuffer = (int*) realloc(curBuffer, newLen, sizeof(int));
+        curBuffer = newBuffer;
+        data->buffer->value[id] = curBuffer;
+        data->buffer->valueLength[id] = newLen;
+
+        int* newTfBuffer = (int*) realloc(data->tfbuffer->value[id], newLen, sizeof(int));
+        memset(newTfBuffer, 0, newLen * sizeof(int));
+        data->tfbuffer->value[id] = newTfBuffer;
+        data->tfbuffer->valueLength[id] = newLen;
       }
+
+      memset(curBuffer, 0, data->buffer->valueLength[id] * sizeof(int));
       data->buffer->valuePosition[id] = 0;
+      data->tfbuffer->valuePosition[id] = 0;
+      data->pbuffer->valuePosition[id] = 1;
+      data->psum->counter[id] = 0;
     }
   }
   return termid;
@@ -155,8 +231,11 @@ int main (int argc, char** args) {
 
   IndexingData* data = (IndexingData*) malloc(sizeof(IndexingData));
   data->buffer = createDynamicBuffer(DEFAULT_VOCAB_SIZE);
+  data->tfbuffer = createDynamicBuffer(DEFAULT_VOCAB_SIZE);
+  data->pbuffer = createDynamicBuffer(DEFAULT_VOCAB_SIZE);
   data->dic = inithashtable();
   data->df = createFixedIntCounter(DEFAULT_VOCAB_SIZE, 0);
+  data->psum = createFixedIntCounter(DEFAULT_VOCAB_SIZE, 0);
   data->startPointers = createFixedLongCounter(DEFAULT_VOCAB_SIZE, UNDEFINED_POINTER);
   data->uniqueTerms = createIntSet(2048);
   data->expansionEnabled = (maxBlocks > BLOCK_SIZE);
@@ -271,7 +350,7 @@ int main (int argc, char** args) {
       long pointer = data->startPointers->counter[term];
       while(pointer != UNDEFINED_POINTER) {
         memset(outBlock, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
-        int num = decompressBlock(pool, outBlock, pointer);
+        int num = decompressDocidBlock(pool, outBlock, pointer);
         tailPointer = compressAndAdd(contiguousPool, outBlock, num, tailPointer);
         pointer = nextPointer(pool, pointer);
         if(getFixedLongCounter(contiguousStartPointers, term) == UNDEFINED_POINTER) {

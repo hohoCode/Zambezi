@@ -64,10 +64,10 @@ int containsKey(IntSet* set, int k) {
   return 0;
 }
 
-void addIntSet(IntSet** set, int k) {
+int addIntSet(IntSet** set, int k) {
   int pos = k & (*set)->mask;
   while((*set)->used[pos]) {
-    if((*set)->key[pos] == k) return;
+    if((*set)->key[pos] == k) return 0;
     pos = (pos + 1) & (*set)->mask;
   }
   (*set)->size++;
@@ -78,6 +78,7 @@ void addIntSet(IntSet** set, int k) {
     IntSet* temp = expandIntSet((*set));
     *set = temp;
   }
+  return 1;
 }
 
 void clearIntSet(IntSet* set) {

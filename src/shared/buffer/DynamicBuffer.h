@@ -91,8 +91,6 @@ void putDynamicBuffer(DynamicBuffer* buffer, int k, int* v, int vlen) {
 
   if(!buffer->value[k]) {
     buffer->size++;
-  } else {
-    free(buffer->value[k]);
   }
   buffer->value[k] = v;
   buffer->valueLength[k] = vlen;
