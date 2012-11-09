@@ -15,7 +15,7 @@
 
 #define LENGTH 32*1024
 #define LINE_LENGTH 0x100000
-#define DF_CUTOFF 1//9
+#define DF_CUTOFF 9
 #define POS_PER_DOCID 10
 #define EXPANSION_RATE 2
 #define NUMBER_OF_POOLS 6
@@ -86,8 +86,8 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
       putDynamicBuffer(data->pbuffer, id, curBuffer, DF_CUTOFF * POS_PER_DOCID);
       data->pbuffer->valuePosition[id] = 1;
 
-      curtfBuffer = (int*) calloc(DF_CUTOFF, sizeof(int));
-      putDynamicBuffer(data->tfbuffer, id, curtfBuffer, DF_CUTOFF);
+      curtfBuffer = (int*) calloc(DF_CUTOFF + 1, sizeof(int));
+      putDynamicBuffer(data->tfbuffer, id, curtfBuffer, DF_CUTOFF + 1);
     }
     if(data->pbuffer->valueLength[id] <= data->pbuffer->valuePosition[id] + 1) {
       int len = data->pbuffer->valueLength[id];
@@ -146,8 +146,16 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
 
       //expand tfbuffer
       int* tempTfBuffer= (int*) realloc(data->tfbuffer->value[id], BLOCK_SIZE * sizeof(int));
-      memset(tempTfBuffer+DF_CUTOFF, 0, (BLOCK_SIZE - DF_CUTOFF) * sizeof(int));
+      memset(tempTfBuffer+DF_CUTOFF + 1, 0, (BLOCK_SIZE - DF_CUTOFF - 1) * sizeof(int));
       data->tfbuffer->value[id] = tempTfBuffer;
+
+      //expand pbuffer
+      int origLen = data->pbuffer->valueLength[id];
+      int len = 2 * ((origLen / BLOCK_SIZE) + 1) * BLOCK_SIZE;
+      int* tempPBuffer = (int*) realloc(data->pbuffer->value[id], len * sizeof(int));
+      memset(tempPBuffer+origLen, 0, (len - origLen) * sizeof(int));
+      data->pbuffer->value[id] = tempPBuffer;
+      data->pbuffer->valueLength[id] = len;
     }
 
     curBuffer[data->buffer->valuePosition[id]++] = docid;
@@ -311,7 +319,6 @@ int main (int argc, char** args) {
   unsigned int termsInBuffer = 0;
   int term = -1;
   while((term = nextIndexDynamicBuffer(data->buffer, term, BLOCK_SIZE)) != -1) {
-    printf("  %d\n", term);
     termsInBuffer++;
     int pos = data->buffer->valuePosition[term];
 
