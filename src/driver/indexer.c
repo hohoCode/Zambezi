@@ -83,7 +83,7 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
       data->buffer->pvalueLength[id] = DF_CUTOFF * POS_PER_DOCID;
       data->buffer->pvaluePosition[id] = 1;
 
-      curtfBuffer = (int*) calloc(DF_CUTOFF + 1, sizeof(int));
+      curtfBuffer = (int*) calloc(DF_CUTOFF, sizeof(int));
       data->buffer->tf[id] = curtfBuffer;
     }
 
@@ -108,7 +108,7 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
 
     data->buffer->pvaluePosition[id]++;
     data->buffer->position[id][ps]++;
-    curtfBuffer[data->buffer->valuePosition[id] + 1]++;
+    curtfBuffer[data->buffer->valuePosition[id]]++;
 
     position++;
     line += consumed;
@@ -145,7 +145,7 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
 
       //expand tfbuffer
       int* tempTfBuffer = (int*) realloc(data->buffer->tf[id], BLOCK_SIZE * sizeof(int));
-      memset(tempTfBuffer+DF_CUTOFF + 1, 0, (BLOCK_SIZE - DF_CUTOFF - 1) * sizeof(int));
+      memset(tempTfBuffer+DF_CUTOFF, 0, (BLOCK_SIZE - DF_CUTOFF) * sizeof(int));
       data->buffer->tf[id] = tempTfBuffer;
 
       //expand pbuffer
