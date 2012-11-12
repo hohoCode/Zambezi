@@ -88,6 +88,9 @@ void clearIntSet(IntSet* set) {
 
 int nextIndexIntSet(IntSet* set, int pos) {
   pos++;
+  if(pos >= set->capacity) {
+    return -1;
+  }
   while(!set->used[pos]) {
     pos++;
     if(pos >= set->capacity) {
