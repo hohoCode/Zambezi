@@ -16,9 +16,8 @@
 #define LENGTH 32*1024
 #define LINE_LENGTH 0x100000
 #define DF_CUTOFF 9
-#define POS_PER_DOCID 10
 #define EXPANSION_RATE 2
-#define NUMBER_OF_POOLS 6
+#define NUMBER_OF_POOLS 4
 #define INDEX_FILE "index"
 #define POINTER_FILE "pointers"
 #define DICTIONARY_FILE "dictionary"
@@ -78,9 +77,9 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
     int* curBuffer = data->buffer->position[id];
     int ps = getFixedIntCounter(data->psum, id);
     if(!curBuffer) {
-      curBuffer = (int*) calloc(DF_CUTOFF * POS_PER_DOCID, sizeof(int));
+      curBuffer = (int*) calloc(DF_CUTOFF, sizeof(int));
       data->buffer->position[id] = curBuffer;
-      data->buffer->pvalueLength[id] = DF_CUTOFF * POS_PER_DOCID;
+      data->buffer->pvalueLength[id] = DF_CUTOFF;
       data->buffer->pvaluePosition[id] = 1;
 
       curtfBuffer = (int*) calloc(DF_CUTOFF, sizeof(int));
