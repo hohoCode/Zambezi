@@ -61,6 +61,8 @@ int main (int argc, char** args) {
 
   term = -1;
   while((term = nextIndexFixedLongCounter(startPointers, term)) != -1) {
+    printf("%d\n", term);
+    fflush(stdout);
     long pointer = startPointers->counter[term];
     long newPointer = readPostingsForTerm(contiguousPool, pointer, fp);
     setFixedLongCounter(contiguousStartPointers, term, newPointer);
