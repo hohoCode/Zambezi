@@ -13,7 +13,7 @@
 #define POINTER_FILE "pointers"
 #define DICTIONARY_FILE "dictionary"
 #define DEFAULT_VOCAB_SIZE 33554432
-#define NUMBER_OF_POOLS 6
+#define NUMBER_OF_POOLS 4
 
 int main (int argc, char** args) {
   char* inputPath = args[1];
