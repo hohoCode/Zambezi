@@ -256,8 +256,8 @@ int grabline(char* t, char* buffer, int* consumed) {
 }
 
 int main (int argc, char** args) {
-  char* outputPath = getValueCL(argc, args, "-output");
-  int maxBlocks = atoi(getValueCL(argc, args, "-maxBlocks")) * BLOCK_SIZE;
+  char* outputPath = getValueCL(argc, args, "-index");
+  int maxBlocks = atoi(getValueCL(argc, args, "-mb")) * BLOCK_SIZE;
   int positional = isPresentCL(argc, args, "-positional");
   int inputBeginIndex = isPresentCL(argc, args, "-input") + 1;
 

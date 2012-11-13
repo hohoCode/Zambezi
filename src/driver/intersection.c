@@ -196,7 +196,7 @@ int* intersect(PostingsPool* pool, long* startPointers, int len, int minDf) {
 }
 
 int main (int argc, char** args) {
-  char* inputPath = getValueCL(argc, args, "-input");
+  char* inputPath = getValueCL(argc, args, "-index");
   char* queryPath = getValueCL(argc, args, "-query");
   char* outputPath = getValueCL(argc, args, "-output");
 
