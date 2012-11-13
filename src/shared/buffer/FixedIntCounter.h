@@ -39,10 +39,8 @@ void destroyFixedIntCounter(FixedIntCounter* counter) {
 
 void expandFixedIntCounter(FixedIntCounter* counter) {
   int* temp = (int*) realloc(counter->counter, counter->vocabSize * 2 * sizeof(int));
-  if(counter->defaultValue) {
-    memset(&temp[counter->vocabSize], counter->defaultValue,
-           counter->vocabSize * sizeof(int));
-  }
+  memset(&temp[counter->vocabSize], counter->defaultValue,
+         counter->vocabSize * sizeof(int));
   counter->vocabSize *= 2;
   counter->counter = temp;
 }
