@@ -7,12 +7,9 @@
 #include "buffer/FixedIntCounter.h"
 #include "buffer/FixedLongCounter.h"
 #include "PostingsPool.h"
+#include "Config.h"
 
 #define TERMINAL_DOCID -1
-#define INDEX_FILE "index"
-#define POINTER_FILE "pointers"
-#define DICTIONARY_FILE "dictionary"
-#define DEFAULT_VOCAB_SIZE 33554432
 #define NUMBER_OF_POOLS 4
 
 int main (int argc, char** args) {

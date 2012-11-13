@@ -8,13 +8,9 @@
 #include "buffer/FixedIntCounter.h"
 #include "buffer/FixedLongCounter.h"
 #include "PostingsPool.h"
+#include "Config.h"
 
 #define TERMINAL_DOCID -1
-#define DF_CUTOFF 9
-#define INDEX_FILE "index"
-#define POINTER_FILE "pointers"
-#define DICTIONARY_FILE "dictionary"
-#define DEFAULT_VOCAB_SIZE 33554432
 
 int* intersectPostingsLists(PostingsPool* pool, long a, long b, int minDf) {
   int* set = (int*) calloc(minDf, sizeof(int));

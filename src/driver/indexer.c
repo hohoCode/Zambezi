@@ -12,16 +12,12 @@
 #include "buffer/FixedLongCounter.h"
 #include "buffer/IntSet.h"
 #include "PostingsPool.h"
+#include "Config.h"
 
 #define LENGTH 32*1024
 #define LINE_LENGTH 0x100000
-#define DF_CUTOFF 9
 #define EXPANSION_RATE 2
 #define NUMBER_OF_POOLS 4
-#define INDEX_FILE "index"
-#define POINTER_FILE "pointers"
-#define DICTIONARY_FILE "dictionary"
-#define DEFAULT_VOCAB_SIZE 33554432
 
 typedef struct IndexingData IndexingData;
 struct IndexingData {
