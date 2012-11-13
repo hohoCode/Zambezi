@@ -11,6 +11,7 @@
 #include "buffer/FixedIntCounter.h"
 #include "buffer/FixedLongCounter.h"
 #include "buffer/IntSet.h"
+#include "util/ParseCommandLine.h"
 #include "PostingsPool.h"
 #include "Config.h"
 
@@ -255,9 +256,10 @@ int grabline(char* t, char* buffer, int* consumed) {
 }
 
 int main (int argc, char** args) {
-  char* outputPath = args[1];
-  int maxBlocks = atoi(args[2]) * BLOCK_SIZE;
-  int positional = atoi(args[3]);
+  char* outputPath = getValueCL(argc, args, "-output");
+  int maxBlocks = atoi(getValueCL(argc, args, "-maxBlocks")) * BLOCK_SIZE;
+  int positional = isPresentCL(argc, args, "-positional");
+  int inputBeginIndex = isPresentCL(argc, args, "-input") + 1;
 
   IndexingData* data = (IndexingData*) malloc(sizeof(IndexingData));
   data->buffer = createDynamicBuffer(DEFAULT_VOCAB_SIZE, positional);
@@ -287,7 +289,7 @@ int main (int argc, char** args) {
 
   int fp = 0;
   int len = 0;
-  for(fp = 4; fp < argc; fp++) {
+  for(fp = inputBeginIndex; fp < argc; fp++) {
     file = gzopen(args[fp], "r");
     int oldBufferIndex = 0;
 
@@ -337,7 +339,8 @@ int main (int argc, char** args) {
     gzclose (file);
 
     gettimeofday(&end, NULL);
-    printf("Files processed: %d Time: %6.0f\n", (fp - 3), ((float) (end.tv_sec - start.tv_sec)));
+    printf("Files processed: %d Time: %6.0f\n", (fp - inputBeginIndex + 1),
+           ((float) (end.tv_sec - start.tv_sec)));
     fflush(stdout);
   }
 
