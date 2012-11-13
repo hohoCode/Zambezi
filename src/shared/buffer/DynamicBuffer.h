@@ -105,7 +105,7 @@ int containsKeyDynamicBuffer(DynamicBuffer* buffer, int k) {
 }
 
 int* getDocidDynamicBuffer(DynamicBuffer* buffer, int k) {
-  while(k > buffer->capacity) {
+  if(k >= buffer->capacity) {
     expandDynamicBuffer(buffer);
   }
 
@@ -113,7 +113,7 @@ int* getDocidDynamicBuffer(DynamicBuffer* buffer, int k) {
 }
 
 int* getTfDynamicBuffer(DynamicBuffer* buffer, int k) {
-  while(k > buffer->capacity) {
+  if(k >= buffer->capacity) {
     expandDynamicBuffer(buffer);
   }
 
@@ -121,7 +121,7 @@ int* getTfDynamicBuffer(DynamicBuffer* buffer, int k) {
 }
 
 int* getPositionDynamicBuffer(DynamicBuffer* buffer, int k) {
-  while(k > buffer->capacity) {
+  if(k >= buffer->capacity) {
     expandDynamicBuffer(buffer);
   }
 
@@ -130,6 +130,9 @@ int* getPositionDynamicBuffer(DynamicBuffer* buffer, int k) {
 
 int nextIndexDynamicBuffer(DynamicBuffer* buffer, int pos, int minLength) {
   pos++;
+  if(pos >= buffer->capacity) {
+    return -1;
+  }
   while(buffer->valueLength[pos] < minLength) {
     pos++;
     if(pos >= buffer->capacity) {

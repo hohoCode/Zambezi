@@ -82,7 +82,7 @@ long compressAndAdd(PostingsPool* pool, unsigned int* data,
     lastOffset = DECODE_OFFSET(tailPointer);
   }
 
-  int pblocksize = 3 * ((plen / BLOCK_SIZE) + 1 ) * BLOCK_SIZE;
+  int pblocksize = 3 * ((plen / BLOCK_SIZE) + 1) * BLOCK_SIZE;
   unsigned int* block = (unsigned int*) calloc(BLOCK_SIZE*2, sizeof(unsigned int));
   unsigned int* tfblock = (unsigned int*) calloc(BLOCK_SIZE*2, sizeof(unsigned int));
   unsigned int* pblock = (unsigned int*) calloc(pblocksize, sizeof(unsigned int));
@@ -103,7 +103,7 @@ long compressAndAdd(PostingsPool* pool, unsigned int* data,
 
   if(res > 0) {
     unsigned int* a = (unsigned int*) calloc(BLOCK_SIZE, sizeof(unsigned int));
-    memcpy(a, &positions[nb * BLOCK_SIZE], res);
+    memcpy(a, &positions[nb * BLOCK_SIZE], res * sizeof(unsigned int));
     int tempPcsize = OPT4(a, res, &pblock[pcsize+1], 0);
     pblock[pcsize] = tempPcsize;
     pcsize += tempPcsize + 1;

@@ -88,11 +88,10 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
 
     if(data->buffer->pvalueLength[id] <= data->buffer->pvaluePosition[id] + 1) {
       int len = data->buffer->pvalueLength[id];
-      int newLen = 2 * ((len / BLOCK_SIZE) + 1) * BLOCK_SIZE;
-      int* tempCurBuffer = (int*) realloc(curBuffer, newLen * sizeof(int));
-      memset(tempCurBuffer+len, 0, (newLen-len) * sizeof(int));
+      int* tempCurBuffer = (int*) realloc(curBuffer, 2 * len * sizeof(int));
+      memset(tempCurBuffer+len, 0, len * sizeof(int));
       data->buffer->position[id] = tempCurBuffer;
-      data->buffer->pvalueLength[id] = newLen;
+      data->buffer->pvalueLength[id] *= 2;
       curBuffer = data->buffer->position[id];
     }
 

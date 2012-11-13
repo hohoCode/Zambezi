@@ -90,6 +90,9 @@ void resetFixedLongCounter(FixedLongCounter* counter, unsigned int index) {
 
 int nextIndexFixedLongCounter(FixedLongCounter* counter, int pos) {
   pos++;
+  if(pos >= counter->vocabSize) {
+    return -1;
+  }
   while(counter->counter[pos] == counter->defaultValue) {
     pos++;
     if(pos >= counter->vocabSize) {
