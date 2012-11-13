@@ -6,6 +6,7 @@
 #include "dictionary/hashtable.h"
 #include "buffer/FixedIntCounter.h"
 #include "buffer/FixedLongCounter.h"
+#include "util/ParseCommandLine.h"
 #include "PostingsPool.h"
 #include "Config.h"
 
@@ -13,8 +14,8 @@
 #define NUMBER_OF_POOLS 4
 
 int main (int argc, char** args) {
-  char* inputPath = args[1];
-  char* outputPath = args[2];
+  char* inputPath = getValueCL(argc, args, "-input");
+  char* outputPath = getValueCL(argc, args, "-output");
 
   char dicPath[1024];
   strcpy(dicPath, inputPath);
@@ -58,8 +59,6 @@ int main (int argc, char** args) {
 
   term = -1;
   while((term = nextIndexFixedLongCounter(startPointers, term)) != -1) {
-    printf("%d\n", term);
-    fflush(stdout);
     long pointer = startPointers->counter[term];
     long newPointer = readPostingsForTerm(contiguousPool, pointer, fp);
     setFixedLongCounter(contiguousStartPointers, term, newPointer);

@@ -253,7 +253,6 @@ long readPostingsForTerm(PostingsPool* pool, long pointer, FILE* fp) {
 
     pool->offset += reqspace;
   }
-
   return ENCODE_POINTER(sSegment, sOffset);
 }
 

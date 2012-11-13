@@ -7,6 +7,7 @@
 #include "dictionary/hashtable.h"
 #include "buffer/FixedIntCounter.h"
 #include "buffer/FixedLongCounter.h"
+#include "util/ParseCommandLine.h"
 #include "PostingsPool.h"
 #include "Config.h"
 
@@ -195,12 +196,9 @@ int* intersect(PostingsPool* pool, long* startPointers, int len, int minDf) {
 }
 
 int main (int argc, char** args) {
-  char* inputPath = args[1];
-  char* queryPath = args[2];
-  char* outputPath = NULL;
-  if(argc == 4) {
-    outputPath = args[3];
-  }
+  char* inputPath = getValueCL(argc, args, "-input");
+  char* queryPath = getValueCL(argc, args, "-query");
+  char* outputPath = getValueCL(argc, args, "-output");
 
   char dicPath[1024];
   strcpy(dicPath, inputPath);

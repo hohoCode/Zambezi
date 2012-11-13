@@ -28,6 +28,8 @@ DynamicBuffer* createDynamicBuffer(unsigned int initialSize,
   buffer->valueLength = (unsigned int*) calloc(initialSize, sizeof(unsigned int));
   buffer->valuePosition = (unsigned int*) calloc(initialSize, sizeof(unsigned int));
   buffer->tailPointer = (unsigned long*) calloc(initialSize, sizeof(unsigned long));
+  memset(buffer->tailPointer, UNDEFINED_POINTER,
+         initialSize * sizeof(unsigned long));
 
   if(positional) {
     buffer->tf = (unsigned int**) calloc(initialSize, sizeof(unsigned int*));
