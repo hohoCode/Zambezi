@@ -132,7 +132,7 @@ long compressAndAddPositional(PostingsPool* pool, unsigned int* data,
   unsigned int pcsize = 0;
   int nb = plen / BLOCK_SIZE;
   int res = plen % BLOCK_SIZE;
-  int i;
+  int i = 0;
 
   for(i = 0; i < nb; i++) {
     int tempPcsize = OPT4(&positions[i * BLOCK_SIZE], BLOCK_SIZE, &pblock[pcsize+1], 0);
@@ -225,16 +225,16 @@ int decompressTfBlock(PostingsPool* pool, unsigned int* outBlock, long pointer) 
   return pool->pool[pSegment][pOffset + 3];
 }
 
-int numberOfPositions(PostingsPool* pool, long pointer) {
+int numberOfPositionBlocks(PostingsPool* pool, long pointer) {
   int pSegment = DECODE_SEGMENT(pointer);
   unsigned int pOffset = DECODE_OFFSET(pointer);
 
   unsigned int csize = pool->pool[pSegment][pOffset + 4];
   unsigned int tfsize = pool->pool[pSegment][pOffset + 5 + csize];
-  return pool->pool[pSegment][pOffset + csize + tfsize + 6];
+  return pool->pool[pSegment][pOffset + csize + tfsize + 7];
 }
 
-void decompressPositionBlock(PostingsPool* pool, unsigned int* outBlock, long pointer) {
+int decompressPositionBlock(PostingsPool* pool, unsigned int* outBlock, long pointer) {
   int pSegment = DECODE_SEGMENT(pointer);
   unsigned int pOffset = DECODE_OFFSET(pointer);
 
@@ -249,7 +249,10 @@ void decompressPositionBlock(PostingsPool* pool, unsigned int* outBlock, long po
     unsigned int sb = pool->pool[pSegment][index];
     unsigned int* block = &pool->pool[pSegment][index + 1];
     detailed_p4_decode(&outBlock[i * BLOCK_SIZE], block, aux, 0);
+    memset(aux, 0, BLOCK_SIZE * 4 * sizeof(unsigned int));
+    index += sb + 1;
   }
+  return pool->pool[pSegment][pOffset + csize + tfsize + 6];
 }
 
 long readPostingsForTerm(PostingsPool* pool, long pointer, FILE* fp) {

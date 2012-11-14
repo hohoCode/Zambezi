@@ -66,7 +66,6 @@ int main (int argc, char** args) {
   fclose(fp);
   //end sorting index
 
-
   //write output
   char odicPath[1024];
   strcpy(odicPath, outputPath);
