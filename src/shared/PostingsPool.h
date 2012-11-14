@@ -213,6 +213,45 @@ int decompressDocidBlock(PostingsPool* pool, unsigned int* outBlock, long pointe
   return pool->pool[pSegment][pOffset + 3];
 }
 
+int decompressTfBlock(PostingsPool* pool, unsigned int* outBlock, long pointer) {
+  int pSegment = DECODE_SEGMENT(pointer);
+  unsigned int pOffset = DECODE_OFFSET(pointer);
+
+  unsigned int aux[BLOCK_SIZE*4];
+  unsigned int csize = pool->pool[pSegment][pOffset + 4];
+  unsigned int* block = &pool->pool[pSegment][pOffset + csize + 6];
+  detailed_p4_decode(outBlock, block, aux, 0);
+
+  return pool->pool[pSegment][pOffset + 3];
+}
+
+int numberOfPositions(PostingsPool* pool, long pointer) {
+  int pSegment = DECODE_SEGMENT(pointer);
+  unsigned int pOffset = DECODE_OFFSET(pointer);
+
+  unsigned int csize = pool->pool[pSegment][pOffset + 4];
+  unsigned int tfsize = pool->pool[pSegment][pOffset + 5 + csize];
+  return pool->pool[pSegment][pOffset + csize + tfsize + 6];
+}
+
+void decompressPositionBlock(PostingsPool* pool, unsigned int* outBlock, long pointer) {
+  int pSegment = DECODE_SEGMENT(pointer);
+  unsigned int pOffset = DECODE_OFFSET(pointer);
+
+  unsigned int aux[BLOCK_SIZE*4];
+  unsigned int csize = pool->pool[pSegment][pOffset + 4];
+  unsigned int tfsize = pool->pool[pSegment][pOffset + 5 + csize];
+  unsigned int nb = pool->pool[pSegment][pOffset + csize + tfsize + 7];
+
+  int i;
+  unsigned int index = pOffset + csize + tfsize + 8;
+  for(i = 0; i < nb; i++) {
+    unsigned int sb = pool->pool[pSegment][index];
+    unsigned int* block = &pool->pool[pSegment][index + 1];
+    detailed_p4_decode(&outBlock[i * BLOCK_SIZE], block, aux, 0);
+  }
+}
+
 long readPostingsForTerm(PostingsPool* pool, long pointer, FILE* fp) {
   int sSegment = -1, ppSegment = -1;
   unsigned int sOffset = 0, ppOffset = 0;
