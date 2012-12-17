@@ -21,6 +21,7 @@ To run the indexer:
 	-input <input-path> -mb <maximum-buffer-length-in-number-of-blocks>
 
 You can create a contiguous index as follows:
+
 	out/driver/buildContiguous -input <input-index-root-path> -output <output-index-root-path>
 
 Retrieval
