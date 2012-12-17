@@ -3,15 +3,15 @@
 #include <string.h>
 #include <sys/time.h>
 #include <time.h>
-#include "dictionary/hashtable.h"
+#include "dictionary/Dictionary.h"
 #include "buffer/FixedIntCounter.h"
 #include "buffer/FixedLongCounter.h"
 #include "util/ParseCommandLine.h"
 #include "PostingsPool.h"
+#include "Pointers.h"
 #include "Config.h"
 
 #define TERMINAL_DOCID -1
-#define NUMBER_OF_POOLS 4
 
 int main (int argc, char** args) {
   char* inputPath = getValueCL(argc, args, "-input");
@@ -22,28 +22,15 @@ int main (int argc, char** args) {
   strcat(dicPath, "/");
   strcat(dicPath, DICTIONARY_FILE);
   FILE* fp = fopen(dicPath, "rb");
-  Dictionary** dic = readhashtable(fp);
+  Dictionary** dic = readDictionary(fp);
   fclose(fp);
 
-  FixedIntCounter* df = createFixedIntCounter(DEFAULT_VOCAB_SIZE, 0);
-  FixedLongCounter* startPointers =
-    createFixedLongCounter(DEFAULT_VOCAB_SIZE, UNDEFINED_POINTER);
   char pointerPath[1024];
   strcpy(pointerPath, inputPath);
   strcat(pointerPath, "/");
   strcat(pointerPath, POINTER_FILE);
   fp = fopen(pointerPath, "rb");
-  unsigned int size = 0;
-  fread(&size, sizeof(unsigned int), 1, fp);
-  int i, term, value;
-  long pointer;
-  for(i = 0; i < size; i++) {
-    fread(&term, sizeof(int), 1, fp);
-    fread(&value, sizeof(int), 1, fp);
-    fread(&pointer, sizeof(long), 1, fp);
-    setFixedIntCounter(df, term, value);
-    setFixedLongCounter(startPointers, term, pointer);
-  }
+  Pointers* pointers = readPointers(fp);
   fclose(fp);
 
   //create a contiguous index
@@ -54,14 +41,14 @@ int main (int argc, char** args) {
   fp = fopen(indexPath, "rb");
 
   PostingsPool* contiguousPool = createPostingsPool(NUMBER_OF_POOLS);
-  FixedLongCounter* contiguousStartPointers =
-    createFixedLongCounter(DEFAULT_VOCAB_SIZE, UNDEFINED_POINTER);
+  Pointers* contiguousPointers = createPointers(DEFAULT_VOCAB_SIZE);
 
-  term = -1;
-  while((term = nextIndexFixedLongCounter(startPointers, term)) != -1) {
-    long pointer = startPointers->counter[term];
+  int term = -1;
+  while((term = nextTerm(pointers, term)) != -1) {
+    long pointer = getStartPointer(pointers, term);
     long newPointer = readPostingsForTerm(contiguousPool, pointer, fp);
-    setFixedLongCounter(contiguousStartPointers, term, newPointer);
+    setStartPointer(contiguousPointers, term, newPointer);
+    setDf(contiguousPointers, term, getDf(pointers, term));
   }
   fclose(fp);
   //end sorting index
@@ -73,7 +60,7 @@ int main (int argc, char** args) {
   strcat(odicPath, DICTIONARY_FILE);
 
   fp = fopen(odicPath, "wb");
-  writehashtable(dic, fp);
+  writeDictionary(dic, fp);
   fclose(fp);
 
   char oindexPath[1024];
@@ -91,21 +78,13 @@ int main (int argc, char** args) {
   strcat(opointerPath, POINTER_FILE);
 
   fp = fopen(opointerPath, "wb");
-  size = sizeFixedLongCounter(contiguousStartPointers);
-  fwrite(&size, sizeof(unsigned int), 1, fp);
-  term = -1;
-  while((term = nextIndexFixedLongCounter(contiguousStartPointers, term)) != -1) {
-    fwrite(&term, sizeof(int), 1, fp);
-    fwrite(&df->counter[term], sizeof(int), 1, fp);
-    fwrite(&contiguousStartPointers->counter[term], sizeof(long), 1, fp);
-  }
+  writePointers(contiguousPointers, fp);
   fclose(fp);
 
-  destroyhashtable(dic);
+  destroyDictionary(dic);
   destroyPostingsPool(contiguousPool);
-  destroyFixedIntCounter(df);
-  destroyFixedLongCounter(startPointers);
-  destroyFixedLongCounter(contiguousStartPointers);
+  destroyPointers(pointers);
+  destroyPointers(contiguousPointers);
 
   return 0;
 }

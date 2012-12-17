@@ -1,6 +1,8 @@
 /* Author J. Zobel, April 2001.
    Permission to use this code is freely granted, provided that this
    statement is retained. */
+#ifndef DICTIONARY_H_GUARD
+#define DICTIONARY_H_GUARD
 
 #include "bitwisehash.h"
 #include "scmp.h"
@@ -18,7 +20,7 @@ typedef struct hashrec {
 
 
 /* Create hash table, initialise ptrs to NULL */
-Dictionary ** inithashtable() {
+Dictionary ** initDictionary() {
   int i;
   Dictionary **ht;
   ht = (Dictionary **) malloc( sizeof(Dictionary *) * TSIZE );
@@ -29,7 +31,7 @@ Dictionary ** inithashtable() {
   return(ht);
 }
 
-void destroyhashtable(Dictionary **ht) {
+void destroyDictionary(Dictionary **ht) {
   int i;
   for(i = 0; i < TSIZE; i++) {
     Dictionary* htmp = ht[i];
@@ -45,7 +47,7 @@ void destroyhashtable(Dictionary **ht) {
 }
 
 /* Search hash table for given string, return record if found, else NULL */
-int hashsearch(Dictionary **ht, char *w) {
+int getTermId(Dictionary **ht, char *w) {
   Dictionary  *htmp, *hprv;
   unsigned int hval = HASHFN(w, TMASK, SEED);
 
@@ -69,7 +71,7 @@ int hashsearch(Dictionary **ht, char *w) {
 
 
 /* Search hash table for given string, insert if not found */
-int hashinsert(Dictionary **ht, char *w, int id) {
+int setTermId(Dictionary **ht, char *w, int id) {
   Dictionary  *htmp, *hprv;
   unsigned int hval = HASHFN(w, TMASK, SEED);
 
@@ -107,7 +109,7 @@ int hashinsert(Dictionary **ht, char *w, int id) {
   return htmp->id;
 }
 
-void writehashtable(Dictionary **ht, FILE* fp) {
+void writeDictionary(Dictionary **ht, FILE* fp) {
   int terminal = -1;
   int i, l;
   Dictionary* ptr;
@@ -123,8 +125,8 @@ void writehashtable(Dictionary **ht, FILE* fp) {
   fwrite(&terminal, sizeof(int), 1, fp);
 }
 
-Dictionary** readhashtable(FILE* fp) {
-  Dictionary** ht = inithashtable();
+Dictionary** readDictionary(FILE* fp) {
+  Dictionary** ht = initDictionary();
   int id, i, l;
   char term[1048576];
   fread(&id, sizeof(int), 1, fp);
@@ -132,8 +134,10 @@ Dictionary** readhashtable(FILE* fp) {
     fread(&l, sizeof(int), 1, fp);
     fread(term, sizeof(char), l, fp);
     term[l] = '\0';
-    hashinsert(ht, term, id);
+    setTermId(ht, term, id);
     fread(&id, sizeof(int), 1, fp);
   }
   return ht;
 }
+
+#endif

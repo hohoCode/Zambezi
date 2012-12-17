@@ -5,7 +5,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include "pfordelta/opt_p4.h"
-#include "dictionary/hashtable.h"
+#include "dictionary/Dictionary.h"
 #include "buffer/FixedBuffer.h"
 #include "buffer/DynamicBuffer.h"
 #include "buffer/FixedIntCounter.h"
@@ -13,19 +13,16 @@
 #include "buffer/IntSet.h"
 #include "util/ParseCommandLine.h"
 #include "PostingsPool.h"
+#include "Pointers.h"
 #include "Config.h"
+#include "InvertedIndex.h"
 
 #define LENGTH 32*1024
 #define LINE_LENGTH 0x100000
-#define EXPANSION_RATE 2
-#define NUMBER_OF_POOLS 4
 
 typedef struct IndexingData IndexingData;
 struct IndexingData {
-  Dictionary** dic;
   DynamicBuffer* buffer;
-  FixedLongCounter* startPointers;
-  FixedIntCounter* df;
   FixedIntCounter* psum;
   IntSet* uniqueTerms;
   int positional;
@@ -34,10 +31,7 @@ struct IndexingData {
 };
 
 void destroyIndexingData(IndexingData* data) {
-  destroyhashtable(data->dic);
   destroyDynamicBuffer(data->buffer);
-  destroyFixedLongCounter(data->startPointers);
-  destroyFixedIntCounter(data->df);
   if(data->psum) {
     destroyFixedIntCounter(data->psum);
   }
@@ -57,7 +51,7 @@ void grabword(char* t, char del, int* consumed) {
   *s = '\0';
 }
 
-int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
+int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
   int docid = 0, consumed;
   grabword(line, '\t', &consumed);
   docid = atoi(line);
@@ -67,7 +61,7 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
   clearIntSet(data->uniqueTerms);
   grabword(line, ' ', &consumed);
   while(consumed > 0) {
-    int id = hashinsert(data->dic, line, termid);
+    int id = setTermId(index->dictionary, line, termid);
     int added = addIntSet(&data->uniqueTerms, id);
     if(id == termid) {
       termid++;
@@ -127,7 +121,7 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
       data->buffer->position[id][data->buffer->pvaluePosition[id]] = 0;
     }
 
-    int df = getFixedIntCounter(data->df, id);
+    int df = getDf(index->pointers, id);
     if(df < DF_CUTOFF) {
       int* curBuffer = getDocidDynamicBuffer(data->buffer, id);
       if(!curBuffer) {
@@ -137,7 +131,7 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
       }
       data->buffer->docid[id][df] = docid;
       data->buffer->valuePosition[id]++;
-      data->df->counter[id]++;
+      index->pointers->df->counter[id]++;
       continue;
     }
 
@@ -167,7 +161,7 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
     }
 
     curBuffer[data->buffer->valuePosition[id]++] = docid;
-    data->df->counter[id]++;
+    index->pointers->df->counter[id]++;
 
     if(data->positional) {
       if(data->buffer->valuePosition[id] % BLOCK_SIZE == 0) {
@@ -180,33 +174,33 @@ int process(PostingsPool* pool, IndexingData* data, char* line, int termid) {
       long pointer = data->buffer->tailPointer[id];
       if(nb == 1) {
         if(data->positional) {
-          pointer = compressAndAddPositional(pool, curBuffer, data->buffer->tf[id],
+          pointer = compressAndAddPositional(index->pool, curBuffer, data->buffer->tf[id],
                                              &data->buffer->position[id][1],
                                              BLOCK_SIZE, data->buffer->position[id][0],
                                              pointer);
         } else {
-          pointer = compressAndAddNonPositional(pool, curBuffer,
+          pointer = compressAndAddNonPositional(index->pool, curBuffer,
                                                 BLOCK_SIZE, pointer);
         }
-        if(getFixedLongCounter(data->startPointers, id) == UNDEFINED_POINTER) {
-          setFixedLongCounter(data->startPointers, id, pointer);
+        if(getStartPointer(index->pointers, id) == UNDEFINED_POINTER) {
+          setStartPointer(index->pointers, id, pointer);
         }
       } else {
         int j, ps = 0;
         for(j = 0; j < nb; j++) {
           if(data->positional) {
-            pointer = compressAndAddPositional(pool, &curBuffer[j * BLOCK_SIZE],
+            pointer = compressAndAddPositional(index->pool, &curBuffer[j * BLOCK_SIZE],
                                                &data->buffer->tf[id][j * BLOCK_SIZE],
                                                &data->buffer->position[id][ps + 1],
                                                BLOCK_SIZE, data->buffer->position[id][ps],
                                                pointer);
             ps += data->buffer->position[id][ps] + 1;
           } else {
-            pointer = compressAndAddNonPositional(pool, &curBuffer[j * BLOCK_SIZE],
+            pointer = compressAndAddNonPositional(index->pool, &curBuffer[j * BLOCK_SIZE],
                                                   BLOCK_SIZE, pointer);
           }
-          if(getFixedLongCounter(data->startPointers, id) == UNDEFINED_POINTER) {
-            setFixedLongCounter(data->startPointers, id, pointer);
+          if(getStartPointer(index->pointers, id) == UNDEFINED_POINTER) {
+            setStartPointer(index->pointers, id, pointer);
           }
         }
       }
@@ -261,21 +255,18 @@ int main (int argc, char** args) {
   int positional = isPresentCL(argc, args, "-positional");
   int inputBeginIndex = isPresentCL(argc, args, "-input") + 1;
 
+  InvertedIndex* index = createInvertedIndex();
   IndexingData* data = (IndexingData*) malloc(sizeof(IndexingData));
   data->buffer = createDynamicBuffer(DEFAULT_VOCAB_SIZE, positional);
-  data->dic = inithashtable();
-  data->df = createFixedIntCounter(DEFAULT_VOCAB_SIZE, 0);
   if(positional) {
     data->psum = createFixedIntCounter(DEFAULT_VOCAB_SIZE, 0);
   } else {
     data->psum = NULL;
   }
-  data->startPointers = createFixedLongCounter(DEFAULT_VOCAB_SIZE, UNDEFINED_POINTER);
   data->uniqueTerms = createIntSet(2048);
   data->expansionEnabled = (maxBlocks > BLOCK_SIZE);
   data->maxBlocks = maxBlocks;
   data->positional = positional;
-  PostingsPool* pool = createPostingsPool(NUMBER_OF_POOLS);
 
   int termid = 0;
 
@@ -312,12 +303,12 @@ int main (int argc, char** args) {
         if(iobuffer[start+consumed - 1] == '\n') {
           if(oldBufferIndex > 0) {
             memcpy(oldBuffer+oldBufferIndex, line, consumed);
-            termid = process(pool, data, oldBuffer, termid);
+            termid = process(index, data, oldBuffer, termid);
             memset(oldBuffer, 0, oldBufferIndex);
             oldBufferIndex = 0;
             len = 0;
           } else {
-            termid = process(pool, data, line, termid);
+            termid = process(index, data, line, termid);
             len = 0;
           }
         } else {
@@ -361,7 +352,7 @@ int main (int argc, char** args) {
       for(j = 0; j < nb; j++) {
         if(positional) {
           pointer =
-            compressAndAddPositional(pool, &curBuffer[j * BLOCK_SIZE],
+            compressAndAddPositional(index->pool, &curBuffer[j * BLOCK_SIZE],
                                      &data->buffer->tf[term][j * BLOCK_SIZE],
                                      &data->buffer->position[term][ps + 1],
                                      BLOCK_SIZE, data->buffer->position[term][ps],
@@ -369,29 +360,29 @@ int main (int argc, char** args) {
           ps += data->buffer->position[term][ps] + 1;
         } else {
           pointer =
-            compressAndAddNonPositional(pool, &curBuffer[j * BLOCK_SIZE],
+            compressAndAddNonPositional(index->pool, &curBuffer[j * BLOCK_SIZE],
                                         BLOCK_SIZE, pointer);
         }
-        if(getFixedLongCounter(data->startPointers, term) == UNDEFINED_POINTER) {
-          setFixedLongCounter(data->startPointers, term, pointer);
+        if(getStartPointer(index->pointers, term) == UNDEFINED_POINTER) {
+          setStartPointer(index->pointers, term, pointer);
         }
       }
 
       if(res > 0) {
         if(positional) {
           pointer =
-            compressAndAddPositional(pool, &curBuffer[nb * BLOCK_SIZE],
+            compressAndAddPositional(index->pool, &curBuffer[nb * BLOCK_SIZE],
                                      &data->buffer->tf[term][nb * BLOCK_SIZE],
                                      &data->buffer->position[term][ps + 1],
                                      res, data->buffer->position[term][ps],
                                      pointer);
         } else {
           pointer =
-            compressAndAddNonPositional(pool, &curBuffer[nb * BLOCK_SIZE],
+            compressAndAddNonPositional(index->pool, &curBuffer[nb * BLOCK_SIZE],
                                         res, pointer);
         }
-        if(getFixedLongCounter(data->startPointers, term) == UNDEFINED_POINTER) {
-          setFixedLongCounter(data->startPointers, term, pointer);
+        if(getStartPointer(index->pointers, term) == UNDEFINED_POINTER) {
+          setStartPointer(index->pointers, term, pointer);
         }
       }
     }
@@ -402,41 +393,9 @@ int main (int argc, char** args) {
   printf("Terms in buffer: %u\n", termsInBuffer);
   fflush(stdout);
 
-  char dicPath[1024];
-  strcpy(dicPath, outputPath);
-  strcat(dicPath, "/");
-  strcat(dicPath, DICTIONARY_FILE);
+  writeInvertedIndex(index, outputPath);
 
-  FILE* ofp = fopen(dicPath, "wb");
-  writehashtable(data->dic, ofp);
-  fclose(ofp);
-
-  char indexPath[1024];
-  strcpy(indexPath, outputPath);
-  strcat(indexPath, "/");
-  strcat(indexPath, INDEX_FILE);
-
-  ofp = fopen(indexPath, "wb");
-  writePostingsPool(pool, ofp);
-  fclose(ofp);
-
-  char pointerPath[1024];
-  strcpy(pointerPath, outputPath);
-  strcat(pointerPath, "/");
-  strcat(pointerPath, POINTER_FILE);
-
-  ofp = fopen(pointerPath, "wb");
-  int size = sizeFixedLongCounter(data->startPointers);
-  fwrite(&size, sizeof(unsigned int), 1, ofp);
-  term = -1;
-  while((term = nextIndexFixedLongCounter(data->startPointers, term)) != -1) {
-    fwrite(&term, sizeof(int), 1, ofp);
-    fwrite(&data->df->counter[term], sizeof(int), 1, ofp);
-    fwrite(&data->startPointers->counter[term], sizeof(long), 1, ofp);
-  }
-  fclose(ofp);
-
-  destroyPostingsPool(pool);
+  destroyInvertedIndex(index);
   destroyIndexingData(data);
   free(oldBuffer);
   free(iobuffer);

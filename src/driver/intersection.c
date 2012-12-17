@@ -4,244 +4,37 @@
 #include <sys/time.h>
 #include <time.h>
 #include "pfordelta/opt_p4.h"
-#include "dictionary/hashtable.h"
+#include "dictionary/Dictionary.h"
 #include "buffer/FixedIntCounter.h"
 #include "buffer/FixedLongCounter.h"
 #include "util/ParseCommandLine.h"
 #include "PostingsPool.h"
+#include "Pointers.h"
 #include "Config.h"
-
-#define TERMINAL_DOCID -1
-
-int* intersectPostingsLists(PostingsPool* pool, long a, long b, int minDf) {
-  int* set = (int*) calloc(minDf, sizeof(int));
-  unsigned int* dataA = (unsigned int*) calloc(BLOCK_SIZE * 2, sizeof(unsigned int));
-  unsigned int* dataB = (unsigned int*) calloc(BLOCK_SIZE * 2, sizeof(unsigned int));
-
-  int cA = decompressDocidBlock(pool, dataA, a);
-  int cB = decompressDocidBlock(pool, dataB, b);
-  int iSet = 0, iA = 0, iB = 0;
-
-  while(a != UNDEFINED_POINTER && b != UNDEFINED_POINTER) {
-    if(dataB[iB] == dataA[iA]) {
-      set[iSet++] = dataA[iA];
-      iA++;
-      iB++;
-    }
-
-    if(iA == cA) {
-      a = nextPointer(pool, a);
-      if(a == UNDEFINED_POINTER) {
-        break;
-      }
-      memset(dataA, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
-      cA = decompressDocidBlock(pool, dataA, a);
-      iA = 0;
-    }
-    if(iB == cB) {
-      b = nextPointer(pool, b);
-      if(b == UNDEFINED_POINTER) {
-        break;
-      }
-      memset(dataB, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
-      cB = decompressDocidBlock(pool, dataB, b);
-      iB = 0;
-    }
-
-    if(dataA[iA] < dataB[iB]) {
-      if(dataA[cA - 1] < dataB[iB]) {
-        iA = cA - 1;
-      }
-      while(dataA[iA] < dataB[iB]) {
-        iA++;
-        if(iA == cA) {
-          a = nextPointer(pool, a);
-          if(a == UNDEFINED_POINTER) {
-            break;
-          }
-          memset(dataA, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
-          cA = decompressDocidBlock(pool, dataA, a);
-          iA = 0;
-        }
-        if(dataA[cA - 1] < dataB[iB]) {
-          iA = cA - 1;
-        }
-      }
-    } else {
-      if(dataB[cB - 1] < dataA[iA]) {
-        iB = cB - 1;
-      }
-      while(dataB[iB] < dataA[iA]) {
-        iB++;
-        if(iB == cB) {
-          b = nextPointer(pool, b);
-          if(b == UNDEFINED_POINTER) {
-            break;
-          }
-          memset(dataB, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
-          cB = decompressDocidBlock(pool, dataB, b);
-          iB = 0;
-        }
-        if(dataB[cB - 1] < dataA[iA]) {
-          iB = cB - 1;
-        }
-      }
-    }
-  }
-
-  if(iSet < minDf) {
-    set[iSet] = TERMINAL_DOCID;
-  }
-
-  free(dataA);
-  free(dataB);
-
-  return set;
-}
-
-int intersectSetPostingsList(PostingsPool* pool, long a, int* currentSet, int len) {
-  unsigned int* data = (unsigned int*) calloc(BLOCK_SIZE * 2, sizeof(unsigned int));
-  int c = decompressDocidBlock(pool, data, a);
-  int iSet = 0, iCurrent = 0, i = 0;
-
-  while(a != UNDEFINED_POINTER && iCurrent < len) {
-    if(currentSet[iCurrent] == TERMINAL_DOCID) {
-      break;
-    }
-    if(data[i] == currentSet[iCurrent]) {
-      currentSet[iSet++] = currentSet[iCurrent];
-      iCurrent++;
-      i++;
-    }
-
-    if(i == c) {
-      a = nextPointer(pool, a);
-      if(a == UNDEFINED_POINTER) {
-        break;
-      }
-      memset(data, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
-      c = decompressDocidBlock(pool, data, a);
-      i = 0;
-    }
-    if(iCurrent == len) {
-      break;
-    }
-    if(currentSet[iCurrent] == TERMINAL_DOCID) {
-      break;
-    }
-
-    if(data[i] < currentSet[iCurrent]) {
-      if(data[c - 1] < currentSet[iCurrent]) {
-        i = c - 1;
-      }
-      while(data[i] < currentSet[iCurrent]) {
-        i++;
-        if(i == c) {
-          a = nextPointer(pool, a);
-          if(a == UNDEFINED_POINTER) {
-            break;
-          }
-          memset(data, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
-          c = decompressDocidBlock(pool, data, a);
-          i = 0;
-        }
-        if(data[c - 1] < currentSet[iCurrent]) {
-          i = c - 1;
-        }
-      }
-    } else {
-      while(currentSet[iCurrent] < data[i]) {
-        iCurrent++;
-        if(iCurrent == len) {
-          break;
-        }
-        if(currentSet[iCurrent] == TERMINAL_DOCID) {
-          break;
-        }
-      }
-    }
-  }
-
-  if(iSet < len) {
-    currentSet[iSet] = TERMINAL_DOCID;
-  }
-
-  free(data);
-  return iSet;
-}
-
-int* intersect(PostingsPool* pool, long* startPointers, int len, int minDf) {
-  if(len < 2) {
-    unsigned int* block = (unsigned int*) calloc(BLOCK_SIZE * 2, sizeof(unsigned int));
-    int* set = (int*) calloc(minDf, sizeof(int));
-    int iSet = 0;
-    long t = startPointers[0];
-    while(t != UNDEFINED_POINTER) {
-      memset(block, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
-      int c = decompressDocidBlock(pool, block, t);
-      memcpy(&set[iSet], block, c * sizeof(int));
-      iSet += c;
-      t = nextPointer(pool, t);
-    }
-    free(block);
-    return set;
-  }
-
-  int* set = intersectPostingsLists(pool, startPointers[0], startPointers[1], minDf);
-  int i;
-  for(i = 2; i < len; i++) {
-    intersectSetPostingsList(pool, startPointers[i], set, minDf);
-  }
-  return set;
-}
+#include "InvertedIndex.h"
+#include "intersection/SvS.h"
 
 int main (int argc, char** args) {
   char* inputPath = getValueCL(argc, args, "-index");
   char* queryPath = getValueCL(argc, args, "-query");
   char* outputPath = getValueCL(argc, args, "-output");
+  char* intersectionAlgorithm = getValueCL(argc, args, "-intersection");
 
-  char dicPath[1024];
-  strcpy(dicPath, inputPath);
-  strcat(dicPath, "/");
-  strcat(dicPath, DICTIONARY_FILE);
-  FILE* fp = fopen(dicPath, "rb");
-  Dictionary** dic = readhashtable(fp);
-  fclose(fp);
-
-  char indexPath[1024];
-  strcpy(indexPath, inputPath);
-  strcat(indexPath, "/");
-  strcat(indexPath, INDEX_FILE);
-  fp = fopen(indexPath, "rb");
-  PostingsPool* pool = readPostingsPool(fp);
-  fclose(fp);
-
-  FixedIntCounter* df = createFixedIntCounter(DEFAULT_VOCAB_SIZE, 0);
-  FixedLongCounter* startPointers =
-    createFixedLongCounter(DEFAULT_VOCAB_SIZE, UNDEFINED_POINTER);
-  char pointerPath[1024];
-  strcpy(pointerPath, inputPath);
-  strcat(pointerPath, "/");
-  strcat(pointerPath, POINTER_FILE);
-  fp = fopen(pointerPath, "rb");
-  unsigned int size = 0;
-  fread(&size, sizeof(unsigned int), 1, fp);
-  int i, term, value;
-  long pointer;
-  for(i = 0; i < size; i++) {
-    fread(&term, sizeof(int), 1, fp);
-    fread(&value, sizeof(int), 1, fp);
-    fread(&pointer, sizeof(long), 1, fp);
-    setFixedIntCounter(df, term, value);
-    setFixedLongCounter(startPointers, term, pointer);
+  int* (*intersect)(PostingsPool* pool, long* startPointers, int len, int minDf);
+  if(!strcmp(intersectionAlgorithm, "SvS")) {
+    intersect = &intersectSvS;
+  } else {
+    printf("Invalid intersection algorithm (SvS)\n");
+    return;
   }
-  fclose(fp);
+
+  InvertedIndex* index = readInvertedIndex(inputPath);
 
   //Read queries
   FixedIntCounter* queryLength = createFixedIntCounter(32768, 0);
   FixedIntCounter* idToIndexMap = createFixedIntCounter(32768, 0);
-  fp = fopen(queryPath, "r");
-  int totalQueries = 0, id, qlen, fqlen, j, pos, termid;
+  FILE* fp = fopen(queryPath, "r");
+  int totalQueries = 0, id, qlen, fqlen, j, pos, termid, i;
   char query[1024];
   fscanf(fp, "%d", &totalQueries);
   unsigned int** queries = (unsigned int**) malloc(totalQueries * sizeof(unsigned int*));
@@ -252,9 +45,9 @@ int main (int argc, char** args) {
     fqlen = qlen;
     for(j = 0; j < qlen; j++) {
       fscanf(fp, "%s", query);
-      termid = hashsearch(dic, query);
+      termid = getTermId(index->dictionary, query);
       if(termid >= 0) {
-        if(getFixedIntCounter(df, termid) > DF_CUTOFF) {
+        if(getDf(index->pointers, termid) > DF_CUTOFF) {
           queries[i][pos++] = termid;
         } else {
           fqlen--;
@@ -285,10 +78,10 @@ int main (int argc, char** args) {
     int* sortedDfIndex = (int*) calloc(qlen, sizeof(int));
     long* qStartPointers = (long*) calloc(qlen, sizeof(long));
 
-    qdf[0] = getFixedIntCounter(df, queries[qindex][0]);
+    qdf[0] = getDf(index->pointers, queries[qindex][0]);
     unsigned int minimumDf = qdf[0];
     for(i = 1; i < qlen; i++) {
-      qdf[i] = getFixedIntCounter(df, queries[qindex][i]);
+      qdf[i] = getDf(index->pointers, queries[qindex][i]);
       if(qdf[i] < minimumDf) {
         minimumDf = qdf[i];
       }
@@ -306,11 +99,11 @@ int main (int argc, char** args) {
     }
 
     for(i = 0; i < qlen; i++) {
-      qStartPointers[i] = getFixedLongCounter(startPointers,
-                                              queries[qindex][sortedDfIndex[i]]);
+      qStartPointers[i] = getStartPointer(index->pointers,
+                                          queries[qindex][sortedDfIndex[i]]);
     }
 
-    int* set = intersect(pool, qStartPointers, qlen, minimumDf);
+    int* set = intersect(index->pool, qStartPointers, qlen, minimumDf);
 
     if(outputPath) {
       for(i = 0; i < minimumDf && set[i] != TERMINAL_DOCID; i++) {
@@ -342,9 +135,6 @@ int main (int argc, char** args) {
   free(queries);
   destroyFixedIntCounter(queryLength);
   destroyFixedIntCounter(idToIndexMap);
-  destroyhashtable(dic);
-  destroyPostingsPool(pool);
-  destroyFixedIntCounter(df);
-  destroyFixedLongCounter(startPointers);
+  destroyInvertedIndex(index);
   return 0;
 }
