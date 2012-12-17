@@ -18,7 +18,9 @@ Please note that you must perform necessary preprocessing (e.g., parsing, stoppi
 To run the indexer:
 
 	out/driver/indexer -index <output-index-root-path> [-positional]
-	-input <input-path> -mb <maximum-buffer-length-in-number-of-blocks>
+	-mb <maximum-buffer-length-in-number-of-blocks> -input <input-paths>
+
+Note that -input must be the last argument, and that <input-paths> is a list of files.
 
 You can create a contiguous index as follows:
 
