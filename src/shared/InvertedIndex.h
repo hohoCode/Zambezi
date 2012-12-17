@@ -1,3 +1,15 @@
+/**
+ * An inverted index data structure consisting of
+ * the following components:
+ *
+ *  - PostingsPool, which contains all segments.
+ *  - Dictionary, which is a mapping from term to term id
+ *  - Pointers, which contains Document Frequency, StartPointers,
+ *    etc.
+ *
+ * @author Nima Asadi
+ */
+
 #ifndef InvertedIndex_H_GUARD
 #define InvertedIndex_H_GUARD
 

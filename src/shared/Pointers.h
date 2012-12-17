@@ -43,6 +43,15 @@ void setStartPointer(Pointers* pointers, int term, long sp) {
   setFixedLongCounter(pointers->startPointers, term, sp);
 }
 
+/**
+ * An interator over terms with a valid StartPointer.
+ * Call this function as follows:
+ *
+ *   int term = -1;
+ *   while((term = nextTerm(pointers, term)) != -1) {
+ *     ...
+ *   }
+ */
 int nextTerm(Pointers* pointers, int term) {
   return nextIndexFixedLongCounter(pointers->startPointers, term);
 }

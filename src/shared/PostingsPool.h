@@ -190,6 +190,12 @@ long compressAndAddPositional(PostingsPool* pool, unsigned int* data,
   return newPointer;
 }
 
+/**
+ * Given the current pointer, this function returns
+ * the next pointer. If the current pointer points to
+ * the last block (i.e., there is no "next" block),
+ * then this function returns UNDEFINED_POINTER.
+ */
 long nextPointer(PostingsPool* pool, long pointer) {
   int pSegment = DECODE_SEGMENT(pointer);
   unsigned int pOffset = DECODE_OFFSET(pointer);
@@ -202,6 +208,12 @@ long nextPointer(PostingsPool* pool, long pointer) {
                         pool->pool[pSegment][pOffset + 2]);
 }
 
+/**
+ * Decompresses the docid block from the segment pointed to by "pointer,"
+ * into the "outBlock" buffer. Block size is 128.
+ *
+ * Note that outBlock must be at least 128 integers long.
+ */
 int decompressDocidBlock(PostingsPool* pool, unsigned int* outBlock, long pointer) {
   int pSegment = DECODE_SEGMENT(pointer);
   unsigned int pOffset = DECODE_OFFSET(pointer);
@@ -225,6 +237,10 @@ int decompressTfBlock(PostingsPool* pool, unsigned int* outBlock, long pointer) 
   return pool->pool[pSegment][pOffset + 3];
 }
 
+/**
+ * Retrieved the number of positions stored in the block
+ * pointed to by "pointer".
+ */
 int numberOfPositionBlocks(PostingsPool* pool, long pointer) {
   int pSegment = DECODE_SEGMENT(pointer);
   unsigned int pOffset = DECODE_OFFSET(pointer);
@@ -234,6 +250,14 @@ int numberOfPositionBlocks(PostingsPool* pool, long pointer) {
   return pool->pool[pSegment][pOffset + csize + tfsize + 7];
 }
 
+/**
+ * Decompressed the position block into the "outBlock."
+ * Note that outBlock's length must be:
+ *
+ *     numberOfPositionBlocks() * BLOCK_SIZE,
+ *
+ * where BLOCK_SIZE is 128.
+ */
 int decompressPositionBlock(PostingsPool* pool, unsigned int* outBlock, long pointer) {
   int pSegment = DECODE_SEGMENT(pointer);
   unsigned int pOffset = DECODE_OFFSET(pointer);
@@ -255,6 +279,12 @@ int decompressPositionBlock(PostingsPool* pool, unsigned int* outBlock, long poi
   return pool->pool[pSegment][pOffset + csize + tfsize + 6];
 }
 
+/**
+ * Reads postings for a term from an index stored on hard-disk,
+ * and stores it into "pool."
+ *
+ * @param pointer StartPointer.
+ */
 long readPostingsForTerm(PostingsPool* pool, long pointer, FILE* fp) {
   int sSegment = -1, ppSegment = -1;
   unsigned int sOffset = 0, ppOffset = 0;
