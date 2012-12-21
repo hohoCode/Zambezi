@@ -20,7 +20,7 @@ To run the indexer:
 	out/driver/indexer -index <output-index-root-path> [-positional]
 	-mb <maximum-buffer-length-in-number-of-blocks> -input <input-paths>
 
-Note that -input must be the last argument, and that <input-paths> is a list of files.
+Note that `-input` must be the last argument, and that `<input-paths>` is a list of files.
 
 You can create a contiguous index as follows:
 

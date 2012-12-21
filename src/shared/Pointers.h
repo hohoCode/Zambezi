@@ -44,7 +44,7 @@ void setStartPointer(Pointers* pointers, int term, long sp) {
 }
 
 /**
- * An interator over terms with a valid StartPointer.
+ * An iterator over terms with a valid StartPointer.
  * Call this function as follows:
  *
  *   int term = -1;
