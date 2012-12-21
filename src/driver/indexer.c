@@ -67,7 +67,14 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
       termid++;
     }
 
-    if(data->positional) {
+    if(data->positional == TFONLY) {
+      int* curtfBuffer = getTfDynamicBuffer(data->buffer, id);
+      if(!curtfBuffer) {
+        curtfBuffer = (int*) calloc(DF_CUTOFF + 1, sizeof(int));
+        data->buffer->tf[id] = curtfBuffer;
+      }
+      curtfBuffer[data->buffer->valuePosition[id]]++;
+    } if(data->positional == POSITIONAL) {
       int* curtfBuffer = getTfDynamicBuffer(data->buffer, id);
       int* curBuffer = data->buffer->position[id];
       int ps = getFixedIntCounter(data->psum, id);
@@ -117,7 +124,7 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
   while((keyPos = nextIndexIntSet(data->uniqueTerms, keyPos)) != -1) {
     int id = data->uniqueTerms->key[keyPos];
 
-    if(data->positional) {
+    if(data->positional == POSITIONAL) {
       data->buffer->position[id][data->buffer->pvaluePosition[id]] = 0;
     }
 
@@ -144,12 +151,14 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
       data->buffer->valuePosition[id] = DF_CUTOFF;
       curBuffer = data->buffer->docid[id];
 
-      if(data->positional) {
+      if(data->positional == TFONLY || data->positional == POSITIONAL) {
         //expand tfbuffer
         int* tempTfBuffer = (int*) realloc(data->buffer->tf[id], BLOCK_SIZE * sizeof(int));
         memset(tempTfBuffer+DF_CUTOFF+1, 0, (BLOCK_SIZE - DF_CUTOFF - 1) * sizeof(int));
         data->buffer->tf[id] = tempTfBuffer;
+      }
 
+      if(data->positional == POSITIONAL) {
         //expand pbuffer
         int origLen = data->buffer->pvalueLength[id];
         int len = 2 * ((origLen / BLOCK_SIZE) + 1) * BLOCK_SIZE;
@@ -173,7 +182,10 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
       int nb = data->buffer->valueLength[id] / BLOCK_SIZE;
       long pointer = data->buffer->tailPointer[id];
       if(nb == 1) {
-        if(data->positional) {
+        if(data->positional == TFONLY) {
+          pointer = compressAndAddTfOnly(index->pool, curBuffer, data->buffer->tf[id],
+                                             BLOCK_SIZE, pointer);
+        } if(data->positional == POSITIONAL) {
           pointer = compressAndAddPositional(index->pool, curBuffer, data->buffer->tf[id],
                                              &data->buffer->position[id][1],
                                              BLOCK_SIZE, data->buffer->position[id][0],
@@ -188,7 +200,11 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
       } else {
         int j, ps = 0;
         for(j = 0; j < nb; j++) {
-          if(data->positional) {
+          if(data->positional == TFONLY) {
+            pointer = compressAndAddTfOnly(index->pool, &curBuffer[j * BLOCK_SIZE],
+                                               &data->buffer->tf[id][j * BLOCK_SIZE],
+                                               BLOCK_SIZE, pointer);
+          } if(data->positional == POSITIONAL) {
             pointer = compressAndAddPositional(index->pool, &curBuffer[j * BLOCK_SIZE],
                                                &data->buffer->tf[id][j * BLOCK_SIZE],
                                                &data->buffer->position[id][ps + 1],
@@ -212,7 +228,7 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
         data->buffer->docid[id] = (int*) malloc(newLen * sizeof(int));
         data->buffer->valueLength[id] = newLen;
 
-        if(data->positional) {
+        if(data->positional == POSITIONAL || data->positional == TFONLY) {
           free(data->buffer->tf[id]);
           data->buffer->tf[id] = (int*) malloc(newLen * sizeof(int));
         }
@@ -220,8 +236,10 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
 
       memset(data->buffer->docid[id], 0, data->buffer->valueLength[id] * sizeof(int));
 
-      if(data->positional) {
+      if(data->positional == POSITIONAL || data->positional == TFONLY) {
         memset(data->buffer->tf[id], 0, data->buffer->valueLength[id] * sizeof(int));
+      }
+      if(data->positional == POSITIONAL) {
         memset(data->buffer->position[id], 0, data->buffer->pvalueLength[id] * sizeof(int));
         data->buffer->pvaluePosition[id] = 1;
         data->psum->counter[id] = 0;
@@ -252,7 +270,12 @@ int grabline(char* t, char* buffer, int* consumed) {
 int main (int argc, char** args) {
   char* outputPath = getValueCL(argc, args, "-index");
   int maxBlocks = atoi(getValueCL(argc, args, "-mb")) * BLOCK_SIZE;
-  int positional = isPresentCL(argc, args, "-positional");
+  int positional = NONPOSITIONAL;
+  if(isPresentCL(argc, args, "-positional")) {
+    positional = POSITIONAL;
+  } else if(isPresentCL(argc, args, "-tf")) {
+    positional = TFONLY;
+  }
   int inputBeginIndex = isPresentCL(argc, args, "-input") + 1;
 
   InvertedIndex* index = createInvertedIndex();
@@ -350,7 +373,12 @@ int main (int argc, char** args) {
       long pointer = data->buffer->tailPointer[term];
       int j;
       for(j = 0; j < nb; j++) {
-        if(positional) {
+        if(positional == TFONLY) {
+          pointer =
+            compressAndAddTfOnly(index->pool, &curBuffer[j * BLOCK_SIZE],
+                                 &data->buffer->tf[term][j * BLOCK_SIZE],
+                                 BLOCK_SIZE, pointer);
+        } if(positional == POSITIONAL) {
           pointer =
             compressAndAddPositional(index->pool, &curBuffer[j * BLOCK_SIZE],
                                      &data->buffer->tf[term][j * BLOCK_SIZE],
@@ -369,7 +397,12 @@ int main (int argc, char** args) {
       }
 
       if(res > 0) {
-        if(positional) {
+        if(positional == TFONLY) {
+          pointer =
+            compressAndAddTfOnly(index->pool, &curBuffer[nb * BLOCK_SIZE],
+                                 &data->buffer->tf[term][nb * BLOCK_SIZE],
+                                 res, pointer);
+        } if(positional == POSITIONAL) {
           pointer =
             compressAndAddPositional(index->pool, &curBuffer[nb * BLOCK_SIZE],
                                      &data->buffer->tf[term][nb * BLOCK_SIZE],

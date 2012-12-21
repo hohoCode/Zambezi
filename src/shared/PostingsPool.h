@@ -111,6 +111,53 @@ long compressAndAddNonPositional(PostingsPool* pool, unsigned int* data,
   return newPointer;
 }
 
+long compressAndAddTfOnly(PostingsPool* pool, unsigned int* data,
+    unsigned int* tf, unsigned int len, long tailPointer) {
+  int lastSegment = -1;
+  unsigned int lastOffset = 0;
+  if(tailPointer != UNDEFINED_POINTER) {
+    lastSegment = DECODE_SEGMENT(tailPointer);
+    lastOffset = DECODE_OFFSET(tailPointer);
+  }
+
+  unsigned int* block = (unsigned int*) calloc(BLOCK_SIZE*2, sizeof(unsigned int));
+  unsigned int* tfblock = (unsigned int*) calloc(BLOCK_SIZE*2, sizeof(unsigned int));
+  unsigned int csize = OPT4(data, len, block, 1);
+  unsigned int tfcsize = OPT4(tf, len, tfblock, 0);
+
+  int reqspace = csize + tfcsize + 6;
+  if(reqspace > (MAX_INT_VALUE - pool->offset)) {
+    pool->segment++;
+    pool->offset = 0;
+  }
+
+  pool->pool[pool->segment][pool->offset] = reqspace;
+  pool->pool[pool->segment][pool->offset + 1] = UNKNOWN_SEGMENT;
+  pool->pool[pool->segment][pool->offset + 2] = 0;
+  pool->pool[pool->segment][pool->offset + 3] = len;
+  pool->pool[pool->segment][pool->offset + 4] = csize;
+
+  memcpy(&pool->pool[pool->segment][pool->offset + 5],
+         block, csize * sizeof(int));
+
+  pool->pool[pool->segment][pool->offset + 5 + csize] = tfcsize;
+  memcpy(&pool->pool[pool->segment][pool->offset + 6 + csize],
+         tfblock, tfcsize * sizeof(int));
+
+  if(lastSegment >= 0) {
+    pool->pool[lastSegment][lastOffset + 1] = pool->segment;
+    pool->pool[lastSegment][lastOffset + 2] = pool->offset;
+  }
+
+  long newPointer = ENCODE_POINTER(pool->segment, pool->offset);
+  pool->offset += reqspace;
+
+  free(block);
+  free(tfblock);
+
+  return newPointer;
+}
+
 long compressAndAddPositional(PostingsPool* pool, unsigned int* data,
     unsigned int* tf, unsigned int* positions,
     unsigned int len, unsigned int plen, long tailPointer) {
