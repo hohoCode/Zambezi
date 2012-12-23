@@ -5,7 +5,7 @@
 #include <time.h>
 #include <zlib.h>
 
-#define LENGTH 1024*1024*16
+#define LENGTH 32*1024
 #define LINE_LENGTH 0x100000
 
 int grabword(char* t, char del) {
