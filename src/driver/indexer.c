@@ -57,7 +57,7 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
   docid = atoi(line);
   line += consumed;
 
-  short position = 1;
+  int position = 1;
   clearIntSet(data->uniqueTerms);
   grabword(line, ' ', &consumed);
   while(consumed > 0) {
@@ -76,10 +76,10 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
       curtfBuffer[data->buffer->valuePosition[id]]++;
     } else if(data->positional == POSITIONAL) {
       short* curtfBuffer = getTfDynamicBuffer(data->buffer, id);
-      short* curBuffer = data->buffer->position[id];
+      int* curBuffer = data->buffer->position[id];
       int ps = getFixedIntCounter(data->psum, id);
       if(!curBuffer) {
-        curBuffer = (short*) calloc(DF_CUTOFF, sizeof(short));
+        curBuffer = (int*) calloc(DF_CUTOFF, sizeof(int));
         data->buffer->position[id] = curBuffer;
         data->buffer->pvalueLength[id] = DF_CUTOFF;
         data->buffer->pvaluePosition[id] = 1;
@@ -94,8 +94,8 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
         while(newLen <= data->buffer->pvaluePosition[id] + 1) {
           newLen *= 2;
         }
-        short* tempCurBuffer = (short*) realloc(curBuffer, newLen * sizeof(short));
-        memset(tempCurBuffer+len, 0, (newLen - len) * sizeof(short));
+        int* tempCurBuffer = (int*) realloc(curBuffer, newLen * sizeof(int));
+        memset(tempCurBuffer+len, 0, (newLen - len) * sizeof(int));
         data->buffer->position[id] = tempCurBuffer;
         data->buffer->pvalueLength[id] = newLen;
         curBuffer = data->buffer->position[id];
@@ -162,8 +162,8 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
         //expand pbuffer
         int origLen = data->buffer->pvalueLength[id];
         int len = 2 * ((origLen / BLOCK_SIZE) + 1) * BLOCK_SIZE;
-        short* tempPBuffer = (short*) realloc(data->buffer->position[id], len * sizeof(short));
-        memset(tempPBuffer+origLen, 0, (len - origLen) * sizeof(short));
+        int* tempPBuffer = (int*) realloc(data->buffer->position[id], len * sizeof(int));
+        memset(tempPBuffer+origLen, 0, (len - origLen) * sizeof(int));
         data->buffer->position[id] = tempPBuffer;
         data->buffer->pvalueLength[id] = len;
       }
@@ -240,7 +240,7 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
         memset(data->buffer->tf[id], 0, data->buffer->valueLength[id] * sizeof(short));
       }
       if(data->positional == POSITIONAL) {
-        memset(data->buffer->position[id], 0, data->buffer->pvalueLength[id] * sizeof(short));
+        memset(data->buffer->position[id], 0, data->buffer->pvalueLength[id] * sizeof(int));
         data->buffer->pvaluePosition[id] = 1;
         data->psum->counter[id] = 0;
       }

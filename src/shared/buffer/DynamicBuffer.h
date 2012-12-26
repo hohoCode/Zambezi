@@ -11,7 +11,7 @@ typedef struct DynamicBuffer DynamicBuffer;
 struct DynamicBuffer {
   unsigned int** docid;
   unsigned short** tf;
-  unsigned short** position;
+  unsigned int** position;
   unsigned long* tailPointer;
   unsigned int* valueLength;
   unsigned int* valuePosition;
@@ -39,7 +39,7 @@ DynamicBuffer* createDynamicBuffer(unsigned int initialSize,
   }
 
   if(positional == POSITIONAL) {
-    buffer->position = (unsigned short**) calloc(initialSize, sizeof(unsigned short*));
+    buffer->position = (unsigned int**) calloc(initialSize, sizeof(unsigned int*));
     buffer->pvalueLength = (unsigned int*) calloc(initialSize, sizeof(unsigned int));
     buffer->pvaluePosition = (unsigned int*) calloc(initialSize, sizeof(unsigned int));
   } else {
@@ -111,8 +111,8 @@ void expandDynamicBuffer(DynamicBuffer* buffer) {
   buffer->tailPointer = tempTailPointer;
 
   if(buffer->position) {
-    unsigned short** tempPosition = (unsigned short**) realloc(buffer->position,
-        buffer->capacity * 2 * sizeof(unsigned short*));
+    unsigned int** tempPosition = (unsigned int**) realloc(buffer->position,
+        buffer->capacity * 2 * sizeof(unsigned int*));
     unsigned int* tempPValueLength = (unsigned int*) realloc(buffer->pvalueLength,
         buffer->capacity * 2 * sizeof(unsigned int));
     unsigned int* tempPValuePosition = (unsigned int*) realloc(buffer->pvaluePosition,
@@ -164,7 +164,7 @@ short* getTfDynamicBuffer(DynamicBuffer* buffer, int k) {
   return buffer->tf[k];
 }
 
-short* getPositionDynamicBuffer(DynamicBuffer* buffer, int k) {
+int* getPositionDynamicBuffer(DynamicBuffer* buffer, int k) {
   if(k >= buffer->capacity) {
     expandDynamicBuffer(buffer);
   }
