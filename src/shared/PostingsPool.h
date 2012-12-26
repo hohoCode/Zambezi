@@ -112,7 +112,7 @@ long compressAndAddNonPositional(PostingsPool* pool, unsigned int* data,
 }
 
 long compressAndAddTfOnly(PostingsPool* pool, unsigned int* data,
-    unsigned int* tf, unsigned int len, long tailPointer) {
+    unsigned short* tf, unsigned int len, long tailPointer) {
   int lastSegment = -1;
   unsigned int lastOffset = 0;
   if(tailPointer != UNDEFINED_POINTER) {
@@ -123,7 +123,7 @@ long compressAndAddTfOnly(PostingsPool* pool, unsigned int* data,
   unsigned int* block = (unsigned int*) calloc(BLOCK_SIZE*2, sizeof(unsigned int));
   unsigned int* tfblock = (unsigned int*) calloc(BLOCK_SIZE*2, sizeof(unsigned int));
   unsigned int csize = OPT4(data, len, block, 1);
-  unsigned int tfcsize = OPT4(tf, len, tfblock, 0);
+  unsigned int tfcsize = OPT4Short(tf, len, tfblock, 0);
 
   int reqspace = csize + tfcsize + 6;
   if(reqspace > (MAX_INT_VALUE - pool->offset)) {
@@ -159,7 +159,7 @@ long compressAndAddTfOnly(PostingsPool* pool, unsigned int* data,
 }
 
 long compressAndAddPositional(PostingsPool* pool, unsigned int* data,
-    unsigned int* tf, unsigned int* positions,
+    unsigned short* tf, unsigned short* positions,
     unsigned int len, unsigned int plen, long tailPointer) {
   int lastSegment = -1;
   unsigned int lastOffset = 0;
@@ -173,7 +173,7 @@ long compressAndAddPositional(PostingsPool* pool, unsigned int* data,
   unsigned int* tfblock = (unsigned int*) calloc(BLOCK_SIZE*2, sizeof(unsigned int));
   unsigned int* pblock = (unsigned int*) calloc(pblocksize, sizeof(unsigned int));
   unsigned int csize = OPT4(data, len, block, 1);
-  unsigned int tfcsize = OPT4(tf, len, tfblock, 0);
+  unsigned int tfcsize = OPT4Short(tf, len, tfblock, 0);
 
   // compressing positions
   unsigned int pcsize = 0;
@@ -182,15 +182,15 @@ long compressAndAddPositional(PostingsPool* pool, unsigned int* data,
   int i = 0;
 
   for(i = 0; i < nb; i++) {
-    int tempPcsize = OPT4(&positions[i * BLOCK_SIZE], BLOCK_SIZE, &pblock[pcsize+1], 0);
+    int tempPcsize = OPT4Short(&positions[i * BLOCK_SIZE], BLOCK_SIZE, &pblock[pcsize+1], 0);
     pblock[pcsize] = tempPcsize;
     pcsize += tempPcsize + 1;
   }
 
   if(res > 0) {
-    unsigned int* a = (unsigned int*) calloc(BLOCK_SIZE, sizeof(unsigned int));
-    memcpy(a, &positions[nb * BLOCK_SIZE], res * sizeof(unsigned int));
-    int tempPcsize = OPT4(a, res, &pblock[pcsize+1], 0);
+    unsigned short* a = (unsigned short*) calloc(BLOCK_SIZE, sizeof(unsigned short));
+    memcpy(a, &positions[nb * BLOCK_SIZE], res * sizeof(unsigned short));
+    int tempPcsize = OPT4Short(a, res, &pblock[pcsize+1], 0);
     pblock[pcsize] = tempPcsize;
     pcsize += tempPcsize + 1;
     i++;
