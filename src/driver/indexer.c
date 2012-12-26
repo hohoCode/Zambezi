@@ -17,16 +17,32 @@
 #include "Config.h"
 #include "InvertedIndex.h"
 
+// I/O buffer length
 #define LENGTH 32*1024
 #define LINE_LENGTH 0x100000
 
+// A set of auxiliary data structures for indexing
 typedef struct IndexingData IndexingData;
 struct IndexingData {
+  // Keeps tail pointers, docid, tf, and position
+  // buffer pools, etc.
   DynamicBuffer* buffer;
+
+  // Keeps the index in the position buffer at which
+  // the number of positions for the current block is stored
   FixedIntCounter* psum;
+
+  // Set of unique term ids in a document
   IntSet* uniqueTerms;
+
+  // Whether the index is positional, tf-only, or non-positional
   int positional;
+
+  // Whether buffers can expand when they reach capacity
   int expansionEnabled;
+
+  // If expansion is enabled, then what is the maximum
+  // buffer length (in number of blocks)
   int maxBlocks;
 };
 
@@ -39,6 +55,13 @@ void destroyIndexingData(IndexingData* data) {
   free(data);
 }
 
+/*
+ * An optimized function to read a term from a char*
+ * @param t Input text
+ * @param del Delimiter
+ * @param consumed Number of bytes read.
+ *        consumed is zero is no byte is available to read
+*/
 void grabword(char* t, char del, int* consumed) {
   char* s = t;
   *consumed = 0;
@@ -51,22 +74,40 @@ void grabword(char* t, char del, int* consumed) {
   *s = '\0';
 }
 
+/*
+ * Indexes the contents of a document. Each document
+ * must be stored in a single line, in the following format:
+ *
+ *   <document id> \t <document content>
+ *
+ * @param index Inverted index data structure
+ * @param data Auxiliary data structure
+ * @param line Content of a document
+ * @param termid Largest term id assigned so far
+ * @return largest termid assigned so far
+ */
 int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
   int docid = 0, consumed;
   grabword(line, '\t', &consumed);
   docid = atoi(line);
   line += consumed;
 
+  // positions start from 1
   int position = 1;
   clearIntSet(data->uniqueTerms);
   grabword(line, ' ', &consumed);
   while(consumed > 0) {
+    // Insert the term into the dictionary.
     int id = setTermId(index->dictionary, line, termid);
+    // Add the term to the set of unique terms
     int added = addIntSet(&data->uniqueTerms, id);
+    // If term did not exist in the dictionary (i.e., a new term),
+    // then increment termid
     if(id == termid) {
       termid++;
     }
 
+    // If we are to index tf in addition to docid
     if(data->positional == TFONLY) {
       int* curtfBuffer = getTfDynamicBuffer(data->buffer, id);
       if(!curtfBuffer) {
@@ -77,7 +118,12 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
     } else if(data->positional == POSITIONAL) {
       int* curtfBuffer = getTfDynamicBuffer(data->buffer, id);
       int* curBuffer = data->buffer->position[id];
+      // ps is the index in the position buffer that contains
+      // the number of positions in the current block (because
+      // there could be more than 1 position per term in a document)
       int ps = getFixedIntCounter(data->psum, id);
+
+      // If this is a new term, create initial tf and position buffers
       if(!curBuffer) {
         curBuffer = (int*) calloc(DF_CUTOFF, sizeof(int));
         data->buffer->position[id] = curBuffer;
@@ -88,6 +134,7 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
         data->buffer->tf[id] = curtfBuffer;
       }
 
+      // If position buffer is too small, expand it.
       if(data->buffer->pvalueLength[id] <= data->buffer->pvaluePosition[id] + 1) {
         int len = data->buffer->pvalueLength[id];
         int newLen = 2 * len;
@@ -103,9 +150,12 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
 
       int pbufferpos = data->buffer->pvaluePosition[id];
       if(!added) {
+        // On second or more occurrence, store pgaps in the buffer pool.
+        // Then store the raw position, to be used to compute the next pgap, if any
         curBuffer[pbufferpos] = position - curBuffer[pbufferpos];
         pbufferpos++;
       } else {
+        // On first occurrence, store raw position
         curBuffer[pbufferpos++] = position;
       }
 
@@ -120,15 +170,20 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
     grabword(line, ' ', &consumed);
   }
 
+  // Iterate over all unique terms
   int keyPos = -1;
   while((keyPos = nextIndexIntSet(data->uniqueTerms, keyPos)) != -1) {
     int id = data->uniqueTerms->key[keyPos];
 
+    // Reset the "current position" stored at the end of position buffer
     if(data->positional == POSITIONAL) {
       data->buffer->position[id][data->buffer->pvaluePosition[id]] = 0;
     }
 
+    // Grab the df value for the curren term
     int df = getDf(index->pointers, id);
+    // If df is less than df cut-off, then do not index, but
+    // continue storing docids into initial, much smaller buffers
     if(df < DF_CUTOFF) {
       int* curBuffer = getDocidDynamicBuffer(data->buffer, id);
       if(!curBuffer) {
@@ -142,6 +197,8 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
       continue;
     }
 
+    // If df is greater than df cut-off, however, expand the buffers
+    // to block size if necessary.
     int* curBuffer = data->buffer->docid[id];
     if(data->buffer->valueLength[id] < BLOCK_SIZE) {
       int* tempCurBuffer = (int*) realloc(curBuffer, BLOCK_SIZE * sizeof(int));
@@ -169,15 +226,22 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
       }
     }
 
+    // Insert docid to the end of current docid buffer
     curBuffer[data->buffer->valuePosition[id]++] = docid;
+    // Increment df
     index->pointers->df->counter[id]++;
 
+    // If positional, and a block of docids has been accumulated,
+    // then adjust ps (index in position buffer which contains the number of
+    // positions in the current block)
     if(data->positional == POSITIONAL) {
       if(data->buffer->valuePosition[id] % BLOCK_SIZE == 0) {
         data->psum->counter[id] = data->buffer->pvaluePosition[id]++;
       }
     }
 
+    // If docid buffer is full, compress and add segments (broken down to blocks)
+    // to the inverted index.
     if(data->buffer->valuePosition[id] >= data->buffer->valueLength[id]) {
       int nb = data->buffer->valueLength[id] / BLOCK_SIZE;
       long pointer = data->buffer->tailPointer[id];
