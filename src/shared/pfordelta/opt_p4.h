@@ -62,29 +62,4 @@ unsigned int OPT4(unsigned int *doc_id, unsigned int list_size, unsigned int *au
   return size;
 }
 
-unsigned int OPT4Short(unsigned short *doc_id_short, unsigned int list_size, unsigned int *aux, int delta)
-{
-  unsigned int size = 0;
-  int ex_n = 0;
-  int i;
-
-  unsigned int* doc_id = (unsigned int*) calloc(list_size > BLOCK_SIZE ? list_size : BLOCK_SIZE, sizeof(unsigned int));
-  for(i = 0; i < list_size; i++) {
-    doc_id[i] = doc_id_short[i];
-  }
-
-  if(delta) {
-    for(i = list_size - 1; i > 0; i--) {
-      doc_id[i] -= doc_id[i - 1];
-    }
-  }
-
-  int b = findBestB(doc_id);
-  unsigned int *ww = aux;
-  detailed_p4_encode(&ww, doc_id, b, &size, &ex_n);
-
-  free(doc_id);
-  return size;
-}
-
 #endif

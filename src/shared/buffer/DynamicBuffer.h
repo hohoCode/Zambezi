@@ -10,7 +10,7 @@ typedef struct DynamicBuffer DynamicBuffer;
 
 struct DynamicBuffer {
   unsigned int** docid;
-  unsigned short** tf;
+  unsigned int** tf;
   unsigned int** position;
   unsigned long* tailPointer;
   unsigned int* valueLength;
@@ -33,7 +33,7 @@ DynamicBuffer* createDynamicBuffer(unsigned int initialSize,
          initialSize * sizeof(unsigned long));
 
   if(positional == TFONLY || positional == POSITIONAL) {
-    buffer->tf = (unsigned short**) calloc(initialSize, sizeof(unsigned short*));
+    buffer->tf = (unsigned int**) calloc(initialSize, sizeof(unsigned int*));
   } else {
     buffer->tf = NULL;
   }
@@ -131,8 +131,8 @@ void expandDynamicBuffer(DynamicBuffer* buffer) {
   }
 
   if(buffer->tf) {
-    unsigned short** tempTf = (unsigned short**) realloc(buffer->tf,
-        buffer->capacity * 2 * sizeof(unsigned short*));
+    unsigned int** tempTf = (unsigned int**) realloc(buffer->tf,
+        buffer->capacity * 2 * sizeof(unsigned int*));
 
     int j;
     for(j = buffer->capacity; j < buffer->capacity * 2; j++) {
@@ -156,7 +156,7 @@ int* getDocidDynamicBuffer(DynamicBuffer* buffer, int k) {
   return buffer->docid[k];
 }
 
-short* getTfDynamicBuffer(DynamicBuffer* buffer, int k) {
+int* getTfDynamicBuffer(DynamicBuffer* buffer, int k) {
   if(k >= buffer->capacity) {
     expandDynamicBuffer(buffer);
   }

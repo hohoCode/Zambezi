@@ -68,14 +68,14 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
     }
 
     if(data->positional == TFONLY) {
-      short* curtfBuffer = getTfDynamicBuffer(data->buffer, id);
+      int* curtfBuffer = getTfDynamicBuffer(data->buffer, id);
       if(!curtfBuffer) {
-        curtfBuffer = (short*) calloc(DF_CUTOFF + 1, sizeof(short));
+        curtfBuffer = (int*) calloc(DF_CUTOFF + 1, sizeof(int));
         data->buffer->tf[id] = curtfBuffer;
       }
       curtfBuffer[data->buffer->valuePosition[id]]++;
     } else if(data->positional == POSITIONAL) {
-      short* curtfBuffer = getTfDynamicBuffer(data->buffer, id);
+      int* curtfBuffer = getTfDynamicBuffer(data->buffer, id);
       int* curBuffer = data->buffer->position[id];
       int ps = getFixedIntCounter(data->psum, id);
       if(!curBuffer) {
@@ -84,7 +84,7 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
         data->buffer->pvalueLength[id] = DF_CUTOFF;
         data->buffer->pvaluePosition[id] = 1;
 
-        curtfBuffer = (short*) calloc(DF_CUTOFF + 1, sizeof(short));
+        curtfBuffer = (int*) calloc(DF_CUTOFF + 1, sizeof(int));
         data->buffer->tf[id] = curtfBuffer;
       }
 
@@ -153,8 +153,8 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
 
       if(data->positional == TFONLY || data->positional == POSITIONAL) {
         //expand tfbuffer
-        short* tempTfBuffer = (short*) realloc(data->buffer->tf[id], BLOCK_SIZE * sizeof(short));
-        memset(tempTfBuffer+DF_CUTOFF+1, 0, (BLOCK_SIZE - DF_CUTOFF - 1) * sizeof(short));
+        int* tempTfBuffer = (int*) realloc(data->buffer->tf[id], BLOCK_SIZE * sizeof(int));
+        memset(tempTfBuffer+DF_CUTOFF+1, 0, (BLOCK_SIZE - DF_CUTOFF - 1) * sizeof(int));
         data->buffer->tf[id] = tempTfBuffer;
       }
 
@@ -230,14 +230,14 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
 
         if(data->positional == POSITIONAL || data->positional == TFONLY) {
           free(data->buffer->tf[id]);
-          data->buffer->tf[id] = (short*) malloc(newLen * sizeof(short));
+          data->buffer->tf[id] = (int*) malloc(newLen * sizeof(int));
         }
       }
 
       memset(data->buffer->docid[id], 0, data->buffer->valueLength[id] * sizeof(int));
 
       if(data->positional == POSITIONAL || data->positional == TFONLY) {
-        memset(data->buffer->tf[id], 0, data->buffer->valueLength[id] * sizeof(short));
+        memset(data->buffer->tf[id], 0, data->buffer->valueLength[id] * sizeof(int));
       }
       if(data->positional == POSITIONAL) {
         memset(data->buffer->position[id], 0, data->buffer->pvalueLength[id] * sizeof(int));
