@@ -74,7 +74,7 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
         data->buffer->tf[id] = curtfBuffer;
       }
       curtfBuffer[data->buffer->valuePosition[id]]++;
-    } if(data->positional == POSITIONAL) {
+    } else if(data->positional == POSITIONAL) {
       short* curtfBuffer = getTfDynamicBuffer(data->buffer, id);
       short* curBuffer = data->buffer->position[id];
       int ps = getFixedIntCounter(data->psum, id);
