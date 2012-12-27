@@ -243,7 +243,9 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
     // If docid buffer is full, compress and add segments (broken down to blocks)
     // to the inverted index.
     if(data->buffer->valuePosition[id] >= data->buffer->valueLength[id]) {
+      // Find the number of blocks
       int nb = data->buffer->valueLength[id] / BLOCK_SIZE;
+      // Find the tail pointer
       long pointer = data->buffer->tailPointer[id];
       if(nb == 1) {
         if(data->positional == TFONLY) {
@@ -251,6 +253,8 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
                                              BLOCK_SIZE, pointer);
         } else if(data->positional == POSITIONAL) {
           pointer = compressAndAddPositional(index->pool, curBuffer, data->buffer->tf[id],
+                                             // The first index (0) holds the number
+                                             // of positions in the block
                                              &data->buffer->position[id][1],
                                              BLOCK_SIZE, data->buffer->position[id][0],
                                              pointer);
@@ -258,6 +262,7 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
           pointer = compressAndAddNonPositional(index->pool, curBuffer,
                                                 BLOCK_SIZE, pointer);
         }
+        // If no start pointer exists
         if(getStartPointer(index->pointers, id) == UNDEFINED_POINTER) {
           setStartPointer(index->pointers, id, pointer);
         }
@@ -269,6 +274,7 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
                                                &data->buffer->tf[id][j * BLOCK_SIZE],
                                                BLOCK_SIZE, pointer);
           } else if(data->positional == POSITIONAL) {
+            // The number of positions in the current block is stored at index "ps"
             pointer = compressAndAddPositional(index->pool, &curBuffer[j * BLOCK_SIZE],
                                                &data->buffer->tf[id][j * BLOCK_SIZE],
                                                &data->buffer->position[id][ps + 1],
@@ -286,6 +292,8 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
       }
       data->buffer->tailPointer[id] = pointer;
 
+      // If expansion is enabled and the buffer hasn't reached maximum size,
+      // then expand docid and tf buffers, leaving position buffer as is.
       if((data->buffer->valueLength[id] < data->maxBlocks) && data->expansionEnabled) {
         int newLen = data->buffer->valueLength[id] * EXPANSION_RATE;
         free(data->buffer->docid[id]);
@@ -298,23 +306,37 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
         }
       }
 
+      // Reset docid buffer to 0
       memset(data->buffer->docid[id], 0, data->buffer->valueLength[id] * sizeof(int));
 
+      // Reset tf buffer to 0, if tf buffer is used
       if(data->positional == POSITIONAL || data->positional == TFONLY) {
         memset(data->buffer->tf[id], 0, data->buffer->valueLength[id] * sizeof(int));
       }
+
+      // Reset position buffer to 0, if position buffer is used
       if(data->positional == POSITIONAL) {
         memset(data->buffer->position[id], 0, data->buffer->pvalueLength[id] * sizeof(int));
+        // Reset position buffer index to 1 (index 0 contains the number of positions)
         data->buffer->pvaluePosition[id] = 1;
         data->psum->counter[id] = 0;
       }
 
+      // Reset docid buffer index to 0
       data->buffer->valuePosition[id] = 0;
     }
   }
   return termid;
 }
 
+/*
+ * Reads one line from the input text.
+ *
+ * @param t Input text
+ * @param buffer Buffer to store the extracted line into.
+ * @param consumed Number of bytes read.
+ * @return Whether the extracted line ends with a new line character
+ */
 int grabline(char* t, char* buffer, int* consumed) {
   int c = 0;
   char* s = t;
@@ -332,16 +354,21 @@ int grabline(char* t, char* buffer, int* consumed) {
 }
 
 int main (int argc, char** args) {
+  // Index root path
   char* outputPath = getValueCL(argc, args, "-index");
+  // Maximum buffer length (in blocks)
   int maxBlocks = atoi(getValueCL(argc, args, "-mb")) * BLOCK_SIZE;
+  // Non-positional, docid and tf, or positional index
   int positional = NONPOSITIONAL;
   if(isPresentCL(argc, args, "-positional")) {
     positional = POSITIONAL;
   } else if(isPresentCL(argc, args, "-tf")) {
     positional = TFONLY;
   }
+  // List of input files (must be the last argument)
   int inputBeginIndex = isPresentCL(argc, args, "-input") + 1;
 
+  // Creating and initializing the inverted index and its auxiliary data structures
   InvertedIndex* index = createInvertedIndex();
   IndexingData* data = (IndexingData*) malloc(sizeof(IndexingData));
   data->buffer = createDynamicBuffer(DEFAULT_VOCAB_SIZE, positional);
@@ -355,8 +382,10 @@ int main (int argc, char** args) {
   data->maxBlocks = maxBlocks;
   data->positional = positional;
 
+  // Start term id from 0
   int termid = 0;
 
+  // I/O buffers
   unsigned char* oldBuffer = (unsigned char*) calloc(LINE_LENGTH * 2, sizeof(unsigned char));
   unsigned char* iobuffer = (unsigned char*) calloc(LENGTH, sizeof(unsigned char));
   unsigned char* line = (unsigned char*) calloc(LINE_LENGTH, sizeof(unsigned char));
@@ -372,6 +401,7 @@ int main (int argc, char** args) {
     int oldBufferIndex = 0;
 
     while (1) {
+      // Read one chunk into iobuffer from the current file
       int bytes_read;
       bytes_read = gzread (file, iobuffer, LENGTH - 1);
       iobuffer[bytes_read] = '\0';
@@ -379,15 +409,23 @@ int main (int argc, char** args) {
       int consumed;
       int start = 0;
       int c;
+      // If the first character is the new line character,
+      // process the previously extracted line.
       if(iobuffer[0] == '\n') {
         consumed = 1;
         c = 1;
       } else {
+        // Otherwise, read one line from the input and store it
+        // into the line buffer at the appropriate position.
         c = grabline(iobuffer, line+len, &consumed);
         len += consumed;
       }
+      // While there are more bytes available
       while(c > 0) {
+        // If a full line has been read
         if(iobuffer[start+consumed - 1] == '\n') {
+          // Concatenate the old buffer with the current buffer to
+          // reconstruct the entire line
           if(oldBufferIndex > 0) {
             memcpy(oldBuffer+oldBufferIndex, line, consumed);
             termid = process(index, data, oldBuffer, termid);
@@ -399,6 +437,8 @@ int main (int argc, char** args) {
             len = 0;
           }
         } else {
+          // Otherwise, add the current text to "oldBuffer"
+          // and reset the "line" buffer
           memcpy(oldBuffer+oldBufferIndex, line, consumed);
           oldBufferIndex += consumed;
           len = 0;
@@ -422,6 +462,9 @@ int main (int argc, char** args) {
     fflush(stdout);
   }
 
+  // Indexing is done. But iterate over all terms, and dump
+  // the remaining postings in the buffer pools to the actual
+  // inverted index (if df > df_cut-off)
   unsigned int termsInBuffer = 0;
   int term = -1;
   while((term = nextIndexDynamicBuffer(data->buffer, term, BLOCK_SIZE)) != -1) {
@@ -490,8 +533,10 @@ int main (int argc, char** args) {
   printf("Terms in buffer: %u\n", termsInBuffer);
   fflush(stdout);
 
+  // Write the inverted index to the specified output path
   writeInvertedIndex(index, outputPath);
 
+  // Free the allocated memory
   destroyInvertedIndex(index);
   destroyIndexingData(data);
   free(oldBuffer);
