@@ -15,11 +15,17 @@
 #include "intersection/SvS.h"
 
 int main (int argc, char** args) {
+  // Index path
   char* inputPath = getValueCL(argc, args, "-index");
+  // Query path
   char* queryPath = getValueCL(argc, args, "-query");
+  // Output path (optional)
   char* outputPath = getValueCL(argc, args, "-output");
+  // Algorithm
   char* intersectionAlgorithm = getValueCL(argc, args, "-algorithm");
 
+  // Algorithm is limited to the following list (case sensitive):
+  // - SvS (conjunctive)
   int* (*intersect)(PostingsPool* pool, long* startPointers, int len, int minDf);
   if(!strcmp(intersectionAlgorithm, "SvS")) {
     intersect = &intersectSvS;
@@ -28,9 +34,14 @@ int main (int argc, char** args) {
     return;
   }
 
+  // Read the inverted index
   InvertedIndex* index = readInvertedIndex(inputPath);
 
-  //Read queries
+  // Read queries. Query file must be in the following format:
+  // - First line: <number of queries: integer>
+  // - <query id: integer> <query length: integer> <query text: string>
+  // Note that, if a query term does not have a corresponding postings list,
+  // then we drop the query term from the query. Empty queries are not evaluated.
   FixedIntCounter* queryLength = createFixedIntCounter(32768, 0);
   FixedIntCounter* idToIndexMap = createFixedIntCounter(32768, 0);
   FILE* fp = fopen(queryPath, "r");
@@ -47,7 +58,7 @@ int main (int argc, char** args) {
       fscanf(fp, "%s", query);
       termid = getTermId(index->dictionary, query);
       if(termid >= 0) {
-        if(getDf(index->pointers, termid) > DF_CUTOFF) {
+        if(getStartPointer(index->pointers, termid) != UNDEFINED_POINTER) {
           queries[i][pos++] = termid;
         } else {
           fqlen--;
@@ -65,9 +76,10 @@ int main (int argc, char** args) {
     fp = fopen(outputPath, "w");
   }
 
-  //query evaluation
+  // Evaluate queries by iterating over the queries that are not empty
   id = -1;
   while((id = nextIndexFixedIntCounter(queryLength, id)) != -1) {
+    // Measure elapsed time
     struct timeval start, end;
     gettimeofday(&start, NULL);
 
@@ -87,6 +99,7 @@ int main (int argc, char** args) {
       }
     }
 
+    // Sort query terms w.r.t. df
     for(i = 0; i < qlen; i++) {
       unsigned int minDf = 0xFFFFFFFF;
       for(j = 0; j < qlen; j++) {
@@ -101,16 +114,20 @@ int main (int argc, char** args) {
     for(i = 0; i < qlen; i++) {
       qStartPointers[i] = getStartPointer(index->pointers,
                                           queries[qindex][sortedDfIndex[i]]);
+      qdf[i] = getDf(index->pointers, queries[qindex][sortedDfIndex[i]]);
     }
 
+    // Compute intersection set (or in disjunctive mode, top-k)
     int* set = intersect(index->pool, qStartPointers, qlen, minimumDf);
 
+    // If output is specified, write the retrieved set to output
     if(outputPath) {
       for(i = 0; i < minimumDf && set[i] != TERMINAL_DOCID; i++) {
         fprintf(fp, "q: %d no: %u\n", id, set[i]);
       }
     }
 
+    // Free the allocated memory
     free(set);
     free(qdf);
     free(sortedDfIndex);
@@ -122,7 +139,6 @@ int main (int argc, char** args) {
                      (start.tv_sec * 1000000 + start.tv_usec))), qlen);
     fflush(stdout);
   }
-  //end query evaluation
 
   if(outputPath) {
     fclose(fp);

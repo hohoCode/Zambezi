@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "PostingsPool.h"
+#include "Config.h"
 
 typedef struct DynamicBuffer DynamicBuffer;
 
@@ -31,13 +32,17 @@ DynamicBuffer* createDynamicBuffer(unsigned int initialSize,
   memset(buffer->tailPointer, UNDEFINED_POINTER,
          initialSize * sizeof(unsigned long));
 
-  if(positional) {
+  if(positional == TFONLY || positional == POSITIONAL) {
     buffer->tf = (unsigned int**) calloc(initialSize, sizeof(unsigned int*));
+  } else {
+    buffer->tf = NULL;
+  }
+
+  if(positional == POSITIONAL) {
     buffer->position = (unsigned int**) calloc(initialSize, sizeof(unsigned int*));
     buffer->pvalueLength = (unsigned int*) calloc(initialSize, sizeof(unsigned int));
     buffer->pvaluePosition = (unsigned int*) calloc(initialSize, sizeof(unsigned int));
   } else {
-    buffer->tf = NULL;
     buffer->position = NULL;
     buffer->pvalueLength = NULL;
     buffer->pvaluePosition = NULL;
@@ -47,7 +52,7 @@ DynamicBuffer* createDynamicBuffer(unsigned int initialSize,
 
 void destroyDynamicBuffer(DynamicBuffer* buffer) {
   int i;
-  if(buffer->tf) {
+  if(buffer->position) {
     for(i = 0; i < buffer->capacity; i++) {
       if(buffer->docid[i]) {
         free(buffer->docid[i]);
@@ -59,6 +64,14 @@ void destroyDynamicBuffer(DynamicBuffer* buffer) {
     free(buffer->position);
     free(buffer->pvalueLength);
     free(buffer->pvaluePosition);
+  } else if(buffer->tf) {
+    for(i = 0; i < buffer->capacity; i++) {
+      if(buffer->docid[i]) {
+        free(buffer->docid[i]);
+        free(buffer->tf[i]);
+      }
+    }
+    free(buffer->tf);
   } else {
     for(i = 0; i < buffer->capacity; i++) {
       if(buffer->docid[i]) {
@@ -97,9 +110,7 @@ void expandDynamicBuffer(DynamicBuffer* buffer) {
   buffer->valuePosition = tempValuePosition;
   buffer->tailPointer = tempTailPointer;
 
-  if(buffer->tf) {
-    unsigned int** tempTf = (unsigned int**) realloc(buffer->tf,
-        buffer->capacity * 2 * sizeof(unsigned int*));
+  if(buffer->position) {
     unsigned int** tempPosition = (unsigned int**) realloc(buffer->position,
         buffer->capacity * 2 * sizeof(unsigned int*));
     unsigned int* tempPValueLength = (unsigned int*) realloc(buffer->pvalueLength,
@@ -109,16 +120,25 @@ void expandDynamicBuffer(DynamicBuffer* buffer) {
 
     int j;
     for(j = buffer->capacity; j < buffer->capacity * 2; j++) {
-      tempTf[j] = NULL;
       tempPosition[j] = NULL;
       tempPValueLength[j] = 0;
       tempPValuePosition[j] = 0;
     }
 
-    buffer->tf = tempTf;
     buffer->position = tempPosition;
     buffer->pvalueLength = tempPValueLength;
     buffer->pvaluePosition = tempPValuePosition;
+  }
+
+  if(buffer->tf) {
+    unsigned int** tempTf = (unsigned int**) realloc(buffer->tf,
+        buffer->capacity * 2 * sizeof(unsigned int*));
+
+    int j;
+    for(j = buffer->capacity; j < buffer->capacity * 2; j++) {
+      tempTf[j] = NULL;
+    }
+    buffer->tf = tempTf;
   }
 
   buffer->capacity *= 2;
