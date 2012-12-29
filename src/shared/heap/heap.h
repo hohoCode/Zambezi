@@ -24,7 +24,7 @@ Heap* initHeap(int size) {
 }
 
 void destroyHeap(Heap* heap) {
-  free(heap->docid);
+  //  free(heap->docid);
   free(heap->score);
   free(heap);
 }

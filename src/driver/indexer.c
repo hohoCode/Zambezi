@@ -12,6 +12,7 @@
 #include "buffer/FixedLongCounter.h"
 #include "buffer/IntSet.h"
 #include "util/ParseCommandLine.h"
+#include "scorer/BM25.h"
 #include "PostingsPool.h"
 #include "Pointers.h"
 #include "Config.h"
@@ -170,10 +171,30 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
     grabword(line, ' ', &consumed);
   }
 
+  setDocLen(index->pointers, docid, position);
+  index->pointers->totalDocLen += position;
+  index->pointers->totalDocs++;
+
   // Iterate over all unique terms
   int keyPos = -1;
   while((keyPos = nextIndexIntSet(data->uniqueTerms, keyPos)) != -1) {
     int id = data->uniqueTerms->key[keyPos];
+
+    int tf = data->buffer->tf[id][data->buffer->valuePosition[id]];
+    int dl = getDocLen(index->pointers, docid);
+    float bm25Score = bm25(tf, getDf(index->pointers, id),
+                           index->pointers->totalDocs, dl,
+                           index->pointers->totalDocLen /
+                           ((float) index->pointers->totalDocs));
+    float maxBm25Score = bm25(getMaxTf(index->pointers, id),
+                              getDf(index->pointers, id),
+                              index->pointers->totalDocs,
+                              getMaxTfDocLen(index->pointers, id),
+                              index->pointers->totalDocLen /
+                              ((float) index->pointers->totalDocs));
+    if(bm25Score > maxBm25Score) {
+      setMaxTf(index->pointers, id, tf, dl);
+    }
 
     // Reset the "current position" stored at the end of position buffer
     if(data->positional == POSITIONAL) {

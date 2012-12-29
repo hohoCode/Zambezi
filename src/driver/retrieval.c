@@ -13,6 +13,16 @@
 #include "Config.h"
 #include "InvertedIndex.h"
 #include "intersection/SvS.h"
+#include "intersection/WAND.h"
+
+#ifndef RETRIEVAL_ALGO_ENUM_GUARD
+#define RETRIEVAL_ALGO_ENUM_GUARD
+typedef enum Algorithm Algorithm;
+enum Algorithm {
+  SVS = 0,
+  WAND = 1
+};
+#endif
 
 int main (int argc, char** args) {
   // Index path
@@ -21,16 +31,24 @@ int main (int argc, char** args) {
   char* queryPath = getValueCL(argc, args, "-query");
   // Output path (optional)
   char* outputPath = getValueCL(argc, args, "-output");
+  // Hits
+  int hits = 1000;
+  if(isPresentCL(argc, args, "-hits")) {
+    hits = atoi(getValueCL(argc, args, "-hits"));
+  }
   // Algorithm
   char* intersectionAlgorithm = getValueCL(argc, args, "-algorithm");
+  Algorithm algorithm = SVS;
 
   // Algorithm is limited to the following list (case sensitive):
   // - SvS (conjunctive)
-  int* (*intersect)(PostingsPool* pool, long* startPointers, int len, int minDf);
+  // - WAND (disjunctive)
   if(!strcmp(intersectionAlgorithm, "SvS")) {
-    intersect = &intersectSvS;
+    algorithm = SVS;
+  } else if(!strcmp(intersectionAlgorithm, "WAND")) {
+    algorithm = WAND;
   } else {
-    printf("Invalid algorithm (Options: SvS)\n");
+    printf("Invalid algorithm (Options: SvS | WAND)\n");
     return;
   }
 
@@ -118,7 +136,26 @@ int main (int argc, char** args) {
     }
 
     // Compute intersection set (or in disjunctive mode, top-k)
-    int* set = intersect(index->pool, qStartPointers, qlen, minimumDf);
+    int* set;
+    if(algorithm == SVS) {
+      set = intersectSvS(index->pool, qStartPointers, qlen, minimumDf);
+    } else if(algorithm == WAND) {
+      float* UB = (float*) malloc(qlen * sizeof(float));
+      for(i = 0; i < qlen; i++) {
+        int tf = getMaxTf(index->pointers, queries[qindex][sortedDfIndex[i]]);
+        int dl = getMaxTfDocLen(index->pointers, queries[qindex][sortedDfIndex[i]]);
+        UB[i] = bm25(tf, qdf[i],
+                     index->pointers->totalDocs, dl,
+                     index->pointers->totalDocLen /
+                     ((float) index->pointers->totalDocs));
+      }
+      set = wand(index->pool, qStartPointers, qdf, UB, qlen,
+                 index->pointers->docLen->counter,
+                 index->pointers->totalDocs,
+                 index->pointers->totalDocLen / (float) index->pointers->totalDocs,
+                 hits);
+      free(UB);
+    }
 
     // If output is specified, write the retrieved set to output
     if(outputPath) {

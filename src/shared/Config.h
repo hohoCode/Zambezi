@@ -10,3 +10,6 @@
 #define NONPOSITIONAL 0
 #define TFONLY 1
 #define POSITIONAL 2
+
+#define INDEX_TF(X) ((X == TFONLY || X == POSITIONAL) ? 1 : 0)
+#define INDEX_POSITIONS(X) ((X == POSITIONAL) ? 1 : 0)
