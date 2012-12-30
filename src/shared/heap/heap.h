@@ -83,5 +83,4 @@ int deleteMinHeap(Heap* heap) {
   heap->score[now] = lastScore;
   return minElement;
 }
-
 #endif
