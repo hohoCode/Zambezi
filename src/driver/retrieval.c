@@ -138,6 +138,7 @@ int main (int argc, char** args) {
     // Compute intersection set (or in disjunctive mode, top-k)
     int* set;
     if(algorithm == SVS) {
+      hits = minimumDf;
       set = intersectSvS(index->pool, qStartPointers, qlen, minimumDf);
     } else if(algorithm == WAND) {
       float* UB = (float*) malloc(qlen * sizeof(float));
@@ -159,7 +160,7 @@ int main (int argc, char** args) {
 
     // If output is specified, write the retrieved set to output
     if(outputPath) {
-      for(i = 0; i < minimumDf && set[i] != TERMINAL_DOCID; i++) {
+      for(i = 0; i < hits && set[i] != TERMINAL_DOCID; i++) {
         fprintf(fp, "q: %d no: %u\n", id, set[i]);
       }
     }
