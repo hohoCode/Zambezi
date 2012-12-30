@@ -20,6 +20,7 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
   unsigned int* counts = (unsigned int*) calloc(len, sizeof(unsigned int));
   int* posting = (int*) calloc(len, sizeof(int));
   int* mapping = (int*) calloc(len, sizeof(int));
+  float threshold = 0;
 
   int i, j;
   for(i = 0; i < len; i++) {
@@ -29,11 +30,14 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
     decompressTfBlock(pool, blockTf[i], startPointers[i]);
     posting[i] = 0;
     mapping[i] = i;
+    if(UB[i] <= threshold) {
+      threshold = UB[i] - 1;
+    }
   }
 
   for(i = 0; i < len; i++) {
     for(j = i + 1; j < len; j++) {
-      if(blockDocid[mapping[i]][posting[mapping[i]]] <
+      if(blockDocid[mapping[i]][posting[mapping[i]]] >
          blockDocid[mapping[j]][posting[mapping[j]]]) {
         int temp = mapping[i];
         mapping[i] = mapping[j];
@@ -43,7 +47,6 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
   }
 
   int curDoc = 0;
-  float threshold = 0;
   int pTerm = 0;
   int pTermIdx = 0;
 
@@ -87,6 +90,7 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
           }
           len--;
           atermIdx--;
+          continue;
         }
 
         while(blockDocid[aterm][posting[aterm]] <= curDoc) {
@@ -99,18 +103,19 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
             } else {
               counts[aterm] = decompressDocidBlock(pool, blockDocid[aterm], startPointers[aterm]);
               decompressTfBlock(pool, blockTf[aterm], startPointers[aterm]);
+              posting[aterm] = 0;
             }
           }
         }
+      }
 
-        for(i = 0; i < len; i++) {
-          for(j = i + 1; j < len; j++) {
-            if(blockDocid[mapping[i]][posting[mapping[i]]] <
-               blockDocid[mapping[j]][posting[mapping[j]]]) {
-              int temp = mapping[i];
-              mapping[i] = mapping[j];
-              mapping[j] = temp;
-            }
+      for(i = 0; i < len; i++) {
+        for(j = i + 1; j < len; j++) {
+          if(blockDocid[mapping[i]][posting[mapping[i]]] >
+             blockDocid[mapping[j]][posting[mapping[j]]]) {
+            int temp = mapping[i];
+            mapping[i] = mapping[j];
+            mapping[j] = temp;
           }
         }
       }
@@ -143,9 +148,10 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
           }
           len--;
           atermIdx--;
+          continue;
         }
 
-        while(blockDocid[aterm][posting[aterm]] <= curDoc) {
+        while(blockDocid[aterm][posting[aterm]] <= pivot) {
           posting[aterm]++;
 
           if(posting[aterm] >= counts[aterm] - 1) {
@@ -155,18 +161,19 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
             } else {
               counts[aterm] = decompressDocidBlock(pool, blockDocid[aterm], startPointers[aterm]);
               decompressTfBlock(pool, blockTf[aterm], startPointers[aterm]);
+              posting[aterm] = 0;
             }
           }
         }
+      }
 
-        for(i = 0; i < len; i++) {
-          for(j = i + 1; j < len; j++) {
-            if(blockDocid[mapping[i]][posting[mapping[i]]] <
-               blockDocid[mapping[j]][posting[mapping[j]]]) {
-              int temp = mapping[i];
-              mapping[i] = mapping[j];
-              mapping[j] = temp;
-            }
+      for(i = 0; i < len; i++) {
+        for(j = i + 1; j < len; j++) {
+          if(blockDocid[mapping[i]][posting[mapping[i]]] >
+             blockDocid[mapping[j]][posting[mapping[j]]]) {
+            int temp = mapping[i];
+            mapping[i] = mapping[j];
+            mapping[j] = temp;
           }
         }
       }
@@ -184,9 +191,9 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
   free(blockTf);
   free(counts);
 
-  int* set = (int*) calloc(elements->index, sizeof(int));
+  int* set = (int*) calloc(elements->index + 1, sizeof(int));
   memcpy(set, &elements->docid[1], elements->index * sizeof(int));
-  if(elements->index + 1 < elements->size) {
+  if(!isFullHeap(elements)) {
     set[elements->index] = TERMINAL_DOCID;
   }
   destroyHeap(elements);

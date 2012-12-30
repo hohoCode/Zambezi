@@ -30,7 +30,7 @@ void destroyHeap(Heap* heap) {
 }
 
 int isFullHeap(Heap* heap) {
-  return heap->index == heap->size - 1;
+  return heap->index >= heap->size - 2;
 }
 
 void insertHeap(Heap* heap, int docid, float score) {
