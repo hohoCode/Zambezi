@@ -31,7 +31,7 @@ Retrieval
 
 To do retrieval:
 
-	out/driver/retrieval -index <index-root-path> -query <query-path> -algorithm <SvS>
-	[-output <output-path>]
+	out/driver/retrieval -index <index-root-path> -query <query-path> -algorithm <SvS|WAND>
+	[-hits <hits>] [-output <output-path>]
 
 If `-output` is included, the output is stored at `<output-path>`.
