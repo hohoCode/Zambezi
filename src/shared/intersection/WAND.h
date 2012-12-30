@@ -14,6 +14,7 @@
 int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
          int* docLen, int totalDocs, float avgDocLen, int hits) {
   Heap* elements = initHeap(hits);
+  int origLen = len;
   unsigned int** blockDocid = (unsigned int**) calloc(len, sizeof(unsigned int*));
   unsigned int** blockTf = (unsigned int**) calloc(len, sizeof(unsigned int*));
   unsigned int* counts = (unsigned int*) calloc(len, sizeof(unsigned int));
@@ -71,12 +72,12 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
 
     int pivot = blockDocid[pTerm][posting[pTerm]];
 
-    if(pivot >= curDoc) {
+    if(pivot <= curDoc) {
       int atermIdx;
       for(atermIdx = 0; atermIdx < MIN(pTermIdx + 1, len); atermIdx++) {
         int aterm = mapping[atermIdx];
 
-        if(posting[aterm] == counts[aterm] &&
+        if(posting[aterm] == counts[aterm] - 1 &&
            nextPointer(pool, startPointers[aterm]) == UNDEFINED_POINTER) {
           int k = 0;
           for(i = 0; i < len; i++) {
@@ -88,10 +89,10 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
           atermIdx--;
         }
 
-        while(blockDocid[aterm][posting[aterm]] < curDoc) {
+        while(blockDocid[aterm][posting[aterm]] <= curDoc) {
           posting[aterm]++;
 
-          if(posting[aterm] == counts[aterm]) {
+          if(posting[aterm] >= counts[aterm] - 1) {
             startPointers[aterm] = nextPointer(pool, startPointers[aterm]);
             if(startPointers[aterm] == UNDEFINED_POINTER) {
               break;
@@ -123,14 +124,16 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
         }
 
         insertHeap(elements, curDoc, score);
-        threshold = minScoreHeap(elements);
+        if(isFullHeap(elements)) {
+          threshold = minScoreHeap(elements);
+        }
       }
 
       int atermIdx;
       for(atermIdx = 0; atermIdx < MIN(pTermIdx + 1, len); atermIdx++) {
         int aterm = mapping[atermIdx];
 
-        if(posting[aterm] == counts[aterm] &&
+        if(posting[aterm] == counts[aterm] - 1 &&
            nextPointer(pool, startPointers[aterm]) == UNDEFINED_POINTER) {
           int k = 0;
           for(i = 0; i < len; i++) {
@@ -142,10 +145,10 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
           atermIdx--;
         }
 
-        while(blockDocid[aterm][posting[aterm]] < curDoc) {
+        while(blockDocid[aterm][posting[aterm]] <= curDoc) {
           posting[aterm]++;
 
-          if(posting[aterm] == counts[aterm]) {
+          if(posting[aterm] >= counts[aterm] - 1) {
             startPointers[aterm] = nextPointer(pool, startPointers[aterm]);
             if(startPointers[aterm] == UNDEFINED_POINTER) {
               break;
@@ -173,7 +176,7 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
   // Free the allocated memory
   free(posting);
   free(mapping);
-  for(i = 0; i < len; i++) {
+  for(i = 0; i < origLen; i++) {
     free(blockDocid[i]);
     free(blockTf[i]);
   }
@@ -181,11 +184,12 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
   free(blockTf);
   free(counts);
 
+  int* set = (int*) calloc(elements->index, sizeof(int));
+  memcpy(set, &elements->docid[1], elements->index * sizeof(int));
   if(elements->index + 1 < elements->size) {
-    elements->docid[elements->index + 1] = TERMINAL_DOCID;
+    set[elements->index] = TERMINAL_DOCID;
   }
-  int* set = &elements->docid[1];
-  free(elements);
+  destroyHeap(elements);
   return set;
 }
 

@@ -116,6 +116,7 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
         data->buffer->tf[id] = curtfBuffer;
       }
       curtfBuffer[data->buffer->valuePosition[id]]++;
+      position++;
     } else if(data->positional == POSITIONAL) {
       int* curtfBuffer = getTfDynamicBuffer(data->buffer, id);
       int* curBuffer = data->buffer->position[id];

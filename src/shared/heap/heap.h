@@ -24,9 +24,13 @@ Heap* initHeap(int size) {
 }
 
 void destroyHeap(Heap* heap) {
-  //  free(heap->docid);
+  free(heap->docid);
   free(heap->score);
   free(heap);
+}
+
+int isFullHeap(Heap* heap) {
+  return heap->index == heap->size - 1;
 }
 
 void insertHeap(Heap* heap, int docid, float score) {
