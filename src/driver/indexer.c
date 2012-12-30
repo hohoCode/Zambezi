@@ -183,17 +183,14 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
 
     int tf = data->buffer->tf[id][data->buffer->valuePosition[id]];
     int dl = getDocLen(index->pointers, docid);
-    float bm25Score = bm25(tf, getDf(index->pointers, id),
-                           index->pointers->totalDocs, dl,
-                           index->pointers->totalDocLen /
-                           ((float) index->pointers->totalDocs));
-    float maxBm25Score = bm25(getMaxTf(index->pointers, id),
-                              getDf(index->pointers, id),
-                              index->pointers->totalDocs,
-                              getMaxTfDocLen(index->pointers, id),
-                              index->pointers->totalDocLen /
-                              ((float) index->pointers->totalDocs));
-    if(bm25Score > maxBm25Score) {
+    float bm25TfScore = bm25tf(tf, dl,
+                             index->pointers->totalDocLen /
+                             ((float) index->pointers->totalDocs));
+    float maxBm25TfScore = bm25tf(getMaxTf(index->pointers, id),
+                                getMaxTfDocLen(index->pointers, id),
+                                index->pointers->totalDocLen /
+                                ((float) index->pointers->totalDocs));
+    if(bm25TfScore > maxBm25TfScore) {
       setMaxTf(index->pointers, id, tf, dl);
     }
 

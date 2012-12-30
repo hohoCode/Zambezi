@@ -94,11 +94,10 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
         }
 
         while(blockDocid[aterm][posting[aterm]] <= curDoc) {
-          posting[aterm]++;
-
           if(posting[aterm] >= counts[aterm] - 1) {
             startPointers[aterm] = nextPointer(pool, startPointers[aterm]);
             if(startPointers[aterm] == UNDEFINED_POINTER) {
+              atermIdx--;
               break;
             } else {
               counts[aterm] = decompressDocidBlock(pool, blockDocid[aterm], startPointers[aterm]);
@@ -106,6 +105,7 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
               posting[aterm] = 0;
             }
           }
+          posting[aterm]++;
         }
       }
 
@@ -151,12 +151,11 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
           continue;
         }
 
-        while(blockDocid[aterm][posting[aterm]] <= pivot) {
-          posting[aterm]++;
-
+        while(blockDocid[aterm][posting[aterm]] < pivot) {
           if(posting[aterm] >= counts[aterm] - 1) {
             startPointers[aterm] = nextPointer(pool, startPointers[aterm]);
             if(startPointers[aterm] == UNDEFINED_POINTER) {
+              atermIdx--;
               break;
             } else {
               counts[aterm] = decompressDocidBlock(pool, blockDocid[aterm], startPointers[aterm]);
@@ -164,6 +163,7 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
               posting[aterm] = 0;
             }
           }
+          posting[aterm]++;
         }
       }
 
