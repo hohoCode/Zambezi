@@ -125,6 +125,7 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
           if(blockDocid[mapping[i]][posting[mapping[i]]] == pivot) {
             score += bm25(blockTf[mapping[i]][posting[mapping[i]]],
                           df[mapping[i]], totalDocs, docLen[curDoc], avgDocLen);
+            pTermIdx = i;
           }
         }
 
