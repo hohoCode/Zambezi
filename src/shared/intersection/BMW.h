@@ -48,7 +48,6 @@ int* bmw(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
     }
   }
 
-  int curDoc = 0;
   int pTerm = 0;
   int pTermIdx = 0;
 
@@ -101,8 +100,7 @@ int* bmw(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
       }
     }
 
-    if(blockMaxScore <= threshold ||
-       pivot <= curDoc) {
+    if(blockMaxScore <= threshold) {
       int candidate = pivot + 1;
 
       if(blockMaxScore <= threshold) {
@@ -119,8 +117,6 @@ int* bmw(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
             candidate = maxid;
           }
         }
-      } else if(pivot <= curDoc) {
-        candidate = curDoc + 1;
       }
 
       int aterm = mapping[0];
@@ -182,14 +178,13 @@ int* bmw(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
     }
 
     if(blockDocid[mapping[0]][posting[mapping[0]]] == pivot) {
-      curDoc = pivot;
       float score = 0;
       for(i = 0; i <= pTermIdx; i++) {
         score += bm25(blockTf[mapping[i]][posting[mapping[i]]],
-                      df[mapping[i]], totalDocs, docLen[curDoc], avgDocLen);
+                      df[mapping[i]], totalDocs, docLen[pivot], avgDocLen);
       }
 
-      insertHeap(elements, curDoc, score);
+      insertHeap(elements, pivot, score);
       if(isFullHeap(elements)) {
         threshold = minScoreHeap(elements);
       }
