@@ -59,6 +59,12 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
       if(sum > threshold) {
         pTerm = mapping[i];
         pTermIdx = i;
+        if(i < len - 1) {
+          if(blockDocid[mapping[i]][posting[mapping[i]]] ==
+             blockDocid[mapping[i + 1]][posting[mapping[i + 1]]]) {
+            continue;
+          }
+        }
         break;
       }
     }
@@ -121,11 +127,9 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
       if(blockDocid[mapping[0]][posting[mapping[0]]] == pivot) {
         curDoc = pivot;
         float score = 0;
-        for(i = 0; i < len; i++) {
-          if(blockDocid[mapping[i]][posting[mapping[i]]] == pivot) {
-            score += bm25(blockTf[mapping[i]][posting[mapping[i]]],
-                          df[mapping[i]], totalDocs, docLen[curDoc], avgDocLen);
-          }
+        for(i = 0; i <= pTermIdx; i++) {
+          score += bm25(blockTf[mapping[i]][posting[mapping[i]]],
+                        df[mapping[i]], totalDocs, docLen[curDoc], avgDocLen);
         }
 
         insertHeap(elements, curDoc, score);
