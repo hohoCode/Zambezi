@@ -184,12 +184,12 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
     int tf = data->buffer->tf[id][data->buffer->valuePosition[id]];
     int dl = getDocLen(index->pointers, docid);
     float bm25TfScore = bm25tf(tf, dl,
-                             index->pointers->totalDocLen /
-                             ((float) index->pointers->totalDocs));
+                               index->pointers->totalDocLen /
+                               ((float) index->pointers->totalDocs));
     float maxBm25TfScore = bm25tf(getMaxTf(index->pointers, id),
-                                getMaxTfDocLen(index->pointers, id),
-                                index->pointers->totalDocLen /
-                                ((float) index->pointers->totalDocs));
+                                  getMaxTfDocLen(index->pointers, id),
+                                  index->pointers->totalDocLen /
+                                  ((float) index->pointers->totalDocs));
     if(bm25TfScore > maxBm25TfScore) {
       setMaxTf(index->pointers, id, tf, dl);
     }
@@ -269,14 +269,18 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
       if(nb == 1) {
         if(data->positional == TFONLY) {
           pointer = compressAndAddTfOnly(index->pool, curBuffer, data->buffer->tf[id],
-                                             BLOCK_SIZE, pointer);
+                                         BLOCK_SIZE, pointer, index->pointers->docLen->counter,
+                                         index->pointers->totalDocLen /
+                                         ((float) index->pointers->totalDocs));
         } else if(data->positional == POSITIONAL) {
           pointer = compressAndAddPositional(index->pool, curBuffer, data->buffer->tf[id],
                                              // The first index (0) holds the number
                                              // of positions in the block
                                              &data->buffer->position[id][1],
                                              BLOCK_SIZE, data->buffer->position[id][0],
-                                             pointer);
+                                             pointer, index->pointers->docLen->counter,
+                                             index->pointers->totalDocLen /
+                                             ((float) index->pointers->totalDocs));
         } else {
           pointer = compressAndAddNonPositional(index->pool, curBuffer,
                                                 BLOCK_SIZE, pointer);
@@ -290,15 +294,19 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
         for(j = 0; j < nb; j++) {
           if(data->positional == TFONLY) {
             pointer = compressAndAddTfOnly(index->pool, &curBuffer[j * BLOCK_SIZE],
-                                               &data->buffer->tf[id][j * BLOCK_SIZE],
-                                               BLOCK_SIZE, pointer);
+                                           &data->buffer->tf[id][j * BLOCK_SIZE],
+                                           BLOCK_SIZE, pointer, index->pointers->docLen->counter,
+                                           index->pointers->totalDocLen /
+                                           ((float) index->pointers->totalDocs));
           } else if(data->positional == POSITIONAL) {
             // The number of positions in the current block is stored at index "ps"
             pointer = compressAndAddPositional(index->pool, &curBuffer[j * BLOCK_SIZE],
                                                &data->buffer->tf[id][j * BLOCK_SIZE],
                                                &data->buffer->position[id][ps + 1],
                                                BLOCK_SIZE, data->buffer->position[id][ps],
-                                               pointer);
+                                               pointer, index->pointers->docLen->counter,
+                                               index->pointers->totalDocLen /
+                                               ((float) index->pointers->totalDocs));
             ps += data->buffer->position[id][ps] + 1;
           } else {
             pointer = compressAndAddNonPositional(index->pool, &curBuffer[j * BLOCK_SIZE],
@@ -503,14 +511,18 @@ int main (int argc, char** args) {
           pointer =
             compressAndAddTfOnly(index->pool, &curBuffer[j * BLOCK_SIZE],
                                  &data->buffer->tf[term][j * BLOCK_SIZE],
-                                 BLOCK_SIZE, pointer);
+                                 BLOCK_SIZE, pointer, index->pointers->docLen->counter,
+                                 index->pointers->totalDocLen /
+                                 ((float) index->pointers->totalDocs));
         } else if(positional == POSITIONAL) {
           pointer =
             compressAndAddPositional(index->pool, &curBuffer[j * BLOCK_SIZE],
                                      &data->buffer->tf[term][j * BLOCK_SIZE],
                                      &data->buffer->position[term][ps + 1],
                                      BLOCK_SIZE, data->buffer->position[term][ps],
-                                     pointer);
+                                     pointer, index->pointers->docLen->counter,
+                                     index->pointers->totalDocLen /
+                                     ((float) index->pointers->totalDocs));
           ps += data->buffer->position[term][ps] + 1;
         } else {
           pointer =
@@ -527,14 +539,18 @@ int main (int argc, char** args) {
           pointer =
             compressAndAddTfOnly(index->pool, &curBuffer[nb * BLOCK_SIZE],
                                  &data->buffer->tf[term][nb * BLOCK_SIZE],
-                                 res, pointer);
+                                 res, pointer, index->pointers->docLen->counter,
+                                 index->pointers->totalDocLen /
+                                 ((float) index->pointers->totalDocs));
         } else if(positional == POSITIONAL) {
           pointer =
             compressAndAddPositional(index->pool, &curBuffer[nb * BLOCK_SIZE],
                                      &data->buffer->tf[term][nb * BLOCK_SIZE],
                                      &data->buffer->position[term][ps + 1],
                                      res, data->buffer->position[term][ps],
-                                     pointer);
+                                     pointer, index->pointers->docLen->counter,
+                                     index->pointers->totalDocLen /
+                                     ((float) index->pointers->totalDocs));
         } else {
           pointer =
             compressAndAddNonPositional(index->pool, &curBuffer[nb * BLOCK_SIZE],

@@ -14,13 +14,15 @@
 #include "InvertedIndex.h"
 #include "intersection/SvS.h"
 #include "intersection/WAND.h"
+#include "intersection/BMW.h"
 
 #ifndef RETRIEVAL_ALGO_ENUM_GUARD
 #define RETRIEVAL_ALGO_ENUM_GUARD
 typedef enum Algorithm Algorithm;
 enum Algorithm {
   SVS = 0,
-  WAND = 1
+  WAND = 1,
+  BMW = 2
 };
 #endif
 
@@ -47,8 +49,10 @@ int main (int argc, char** args) {
     algorithm = SVS;
   } else if(!strcmp(intersectionAlgorithm, "WAND")) {
     algorithm = WAND;
+  } else if(!strcmp(intersectionAlgorithm, "BMW")) {
+    algorithm = BMW;
   } else {
-    printf("Invalid algorithm (Options: SvS | WAND)\n");
+    printf("Invalid algorithm (Options: SvS | WAND | BMW)\n");
     return;
   }
 
@@ -140,7 +144,7 @@ int main (int argc, char** args) {
     if(algorithm == SVS) {
       hits = minimumDf;
       set = intersectSvS(index->pool, qStartPointers, qlen, minimumDf);
-    } else if(algorithm == WAND) {
+    } else if(algorithm == WAND || algorithm == BMW) {
       float* UB = (float*) malloc(qlen * sizeof(float));
       for(i = 0; i < qlen; i++) {
         int tf = getMaxTf(index->pointers, queries[qindex][sortedDfIndex[i]]);
@@ -150,11 +154,19 @@ int main (int argc, char** args) {
                      index->pointers->totalDocLen /
                      ((float) index->pointers->totalDocs));
       }
-      set = wand(index->pool, qStartPointers, qdf, UB, qlen,
-                 index->pointers->docLen->counter,
-                 index->pointers->totalDocs,
-                 index->pointers->totalDocLen / (float) index->pointers->totalDocs,
-                 hits);
+      if(algorithm == WAND) {
+        set = wand(index->pool, qStartPointers, qdf, UB, qlen,
+                   index->pointers->docLen->counter,
+                   index->pointers->totalDocs,
+                   index->pointers->totalDocLen / (float) index->pointers->totalDocs,
+                   hits);
+      } else if(algorithm == BMW) {
+        set = bmw(index->pool, qStartPointers, qdf, UB, qlen,
+                  index->pointers->docLen->counter,
+                  index->pointers->totalDocs,
+                  index->pointers->totalDocLen / (float) index->pointers->totalDocs,
+                  hits);
+      }
       free(UB);
     }
 
