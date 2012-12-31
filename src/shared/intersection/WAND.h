@@ -1,5 +1,5 @@
-#ifndef BMW_H_GUARD
-#define BMW_H_GUARD
+#ifndef WAND_H_GUARD
+#define WAND_H_GUARD
 
 #include <stdlib.h>
 #include <stdio.h>
