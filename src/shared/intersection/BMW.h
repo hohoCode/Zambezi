@@ -120,6 +120,7 @@ int* bmw(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
           candidate = maxid;
         }
       }
+      candidate = pivot + 1 > candidate ? pivot + 1 : candidate;
 
       int aterm = mapping[0];
       int atermIdx;
