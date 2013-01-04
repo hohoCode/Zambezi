@@ -84,11 +84,11 @@ int* bmw(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
 
     // NextShallow() and CheckBlockMax()
     float blockMaxScore = 0.0;
-
+    int candidate = pivot + 1;
     for(i = 0; i <= pTermIdx; i++) {
       int iterm = mapping[i];
-
-      while(getBlockMaxDocid(pool, startPointers[iterm]) < pivot) {
+      int maxid;
+      while((maxid = getBlockMaxDocid(pool, startPointers[iterm])) < pivot) {
         long newPointer = nextPointer(pool, startPointers[iterm]);
         if(newPointer == UNDEFINED_POINTER) {
           break;
@@ -98,6 +98,10 @@ int* bmw(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
         }
       }
 
+      maxid++;
+      if(maxid < candidate) {
+        candidate = maxid;
+      }
       if(getBlockMaxDocid(pool, startPointers[iterm]) >= pivot) {
         if(blockChanged[iterm]) {
           blockMaxScores[iterm] = bm25(getBlockMaxTf(pool, startPointers[iterm]),
@@ -110,21 +114,10 @@ int* bmw(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
     }
 
     if(blockMaxScore <= threshold) {
-      int candidate = pivot + 1;
-
-      if(blockMaxScore <= threshold) {
-        candidate = getBlockMaxDocid(pool, startPointers[mapping[0]]) + 1;
-        for(i = 1; i <= pTermIdx; i++) {
-          int maxid = getBlockMaxDocid(pool, startPointers[mapping[i]]) + 1;
-          if(maxid < candidate) {
-            candidate = maxid;
-          }
-        }
-        if(pTermIdx + 1 < len) {
-          int maxid = blockDocid[mapping[i]][posting[mapping[i]]];
-          if(maxid < candidate) {
-            candidate = maxid;
-          }
+      if(pTermIdx + 1 < len) {
+        int maxid = blockDocid[mapping[pTermIdx + 1]][posting[mapping[pTermIdx + 1]]];
+        if(maxid < candidate) {
+          candidate = maxid;
         }
       }
 
