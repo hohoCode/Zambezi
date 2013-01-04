@@ -21,6 +21,7 @@ int* bmw(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
   int* posting = (int*) calloc(len, sizeof(int));
   int* mapping = (int*) calloc(len, sizeof(int));
   int* blockChanged = (int*) calloc(len, sizeof(int));
+  float* blockMaxScores = (float*) malloc(len * sizeof(float));
   float threshold = 0;
 
   int i, j;
@@ -35,6 +36,10 @@ int* bmw(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
     if(UB[i] <= threshold) {
       threshold = UB[i] - 1;
     }
+    blockMaxScores[i] = bm25(getBlockMaxTf(pool, startPointers[i]),
+                             df[i], totalDocs,
+                             getBlockMaxTfDocLen(pool, startPointers[i]),
+                             avgDocLen);
   }
 
   for(i = 0; i < len; i++) {
@@ -94,10 +99,13 @@ int* bmw(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
       }
 
       if(getBlockMaxDocid(pool, startPointers[iterm]) >= pivot) {
-        blockMaxScore += bm25(getBlockMaxTf(pool, startPointers[iterm]),
-                              df[iterm], totalDocs,
-                              getBlockMaxTfDocLen(pool, startPointers[iterm]),
-                              avgDocLen);
+        if(blockChanged[iterm]) {
+          blockMaxScores[iterm] = bm25(getBlockMaxTf(pool, startPointers[iterm]),
+                                       df[iterm], totalDocs,
+                                       getBlockMaxTfDocLen(pool, startPointers[iterm]),
+                                       avgDocLen);
+        }
+        blockMaxScore += blockMaxScores[iterm];
       }
     }
 
@@ -298,6 +306,7 @@ int* bmw(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
   }
   free(blockDocid);
   free(blockTf);
+  free(blockMaxScores);
   free(counts);
 
   int* set = (int*) calloc(elements->index + 1, sizeof(int));
