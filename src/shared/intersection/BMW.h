@@ -79,6 +79,7 @@ int* bmw(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
 
     // NextShallow() and CheckBlockMax()
     float blockMaxScore = 0.0;
+
     for(i = 0; i <= pTermIdx; i++) {
       int iterm = mapping[i];
 
@@ -111,7 +112,7 @@ int* bmw(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
             candidate = maxid;
           }
         }
-        for(i = pTermIdx + 1; i < len; i++) {
+        if(pTermIdx + 1 < len) {
           int maxid = blockDocid[mapping[i]][posting[mapping[i]]];
           if(maxid < candidate) {
             candidate = maxid;
