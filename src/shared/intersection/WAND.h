@@ -75,12 +75,56 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
 
     int pivot = blockDocid[pTerm][posting[pTerm]];
 
-    if(pivot <= curDoc) {
+    if(blockDocid[mapping[0]][posting[mapping[0]]] == pivot) {
+      curDoc = pivot;
+      float score = 0;
+      for(i = 0; i <= pTermIdx; i++) {
+        score += bm25(blockTf[mapping[i]][posting[mapping[i]]],
+                      df[mapping[i]], totalDocs, docLen[curDoc], avgDocLen);
+      }
+
+      insertHeap(elements, curDoc, score);
+      if(isFullHeap(elements)) {
+        threshold = minScoreHeap(elements);
+      }
+
+      int atermIdx;
+      for(atermIdx = 0; atermIdx < MIN(pTermIdx + 1, len); atermIdx++) {
+        int aterm = mapping[atermIdx];
+
+        if(posting[aterm] >= counts[aterm] - 1 &&
+           nextPointer(pool, startPointers[aterm]) == UNDEFINED_POINTER) {
+          int k = 0;
+          for(i = 0; i < len; i++) {
+            if(i != atermIdx) {
+              mapping[k++] = mapping[i];
+            }
+          }
+          len--;
+          atermIdx--;
+          continue;
+        }
+
+        while(blockDocid[aterm][posting[aterm]] <= pivot) {
+          posting[aterm]++;
+          if(posting[aterm] > counts[aterm] - 1) {
+            startPointers[aterm] = nextPointer(pool, startPointers[aterm]);
+            if(startPointers[aterm] == UNDEFINED_POINTER) {
+              break;
+            } else {
+              counts[aterm] = decompressDocidBlock(pool, blockDocid[aterm], startPointers[aterm]);
+              decompressTfBlock(pool, blockTf[aterm], startPointers[aterm]);
+              posting[aterm] = 0;
+            }
+          }
+        }
+      }
+    } else {
       int aterm = mapping[0];
       int atermIdx;
       for(atermIdx = 0; atermIdx < MIN(pTermIdx + 1, len); atermIdx++) {
         if(df[mapping[atermIdx]] <= df[aterm] &&
-           blockDocid[mapping[atermIdx]][posting[mapping[atermIdx]]] <= curDoc) {
+           blockDocid[mapping[atermIdx]][posting[mapping[atermIdx]]] < pivot) {
           int atermTemp = mapping[atermIdx];
 
           if(posting[atermTemp] >= counts[atermTemp] - 1 &&
@@ -99,9 +143,9 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
         }
       }
 
-      while(blockDocid[aterm][posting[aterm]] <= curDoc) {
+      while(blockDocid[aterm][posting[aterm]] < pivot) {
         posting[aterm]++;
-        if(posting[aterm] >= counts[aterm] - 1) {
+        if(posting[aterm] > counts[aterm] - 1) {
           startPointers[aterm] = nextPointer(pool, startPointers[aterm]);
           if(startPointers[aterm] == UNDEFINED_POINTER) {
             break;
@@ -112,109 +156,15 @@ int* wand(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
           }
         }
       }
+    }
 
-      for(i = 0; i < len; i++) {
-        for(j = i + 1; j < len; j++) {
-          if(blockDocid[mapping[i]][posting[mapping[i]]] >
-             blockDocid[mapping[j]][posting[mapping[j]]]) {
-            int temp = mapping[i];
-            mapping[i] = mapping[j];
-            mapping[j] = temp;
-          }
-        }
-      }
-    } else {
-      if(blockDocid[mapping[0]][posting[mapping[0]]] == pivot) {
-        curDoc = pivot;
-        float score = 0;
-        for(i = 0; i <= pTermIdx; i++) {
-          score += bm25(blockTf[mapping[i]][posting[mapping[i]]],
-                        df[mapping[i]], totalDocs, docLen[curDoc], avgDocLen);
-        }
-
-        insertHeap(elements, curDoc, score);
-        if(isFullHeap(elements)) {
-          threshold = minScoreHeap(elements);
-        }
-
-        int atermIdx;
-        for(atermIdx = 0; atermIdx < MIN(pTermIdx + 1, len); atermIdx++) {
-          int aterm = mapping[atermIdx];
-
-          if(posting[aterm] >= counts[aterm] - 1 &&
-             nextPointer(pool, startPointers[aterm]) == UNDEFINED_POINTER) {
-            int k = 0;
-            for(i = 0; i < len; i++) {
-              if(i != atermIdx) {
-                mapping[k++] = mapping[i];
-              }
-            }
-            len--;
-            atermIdx--;
-            continue;
-          }
-
-          while(blockDocid[aterm][posting[aterm]] <= pivot) {
-            posting[aterm]++;
-            if(posting[aterm] >= counts[aterm] - 1) {
-              startPointers[aterm] = nextPointer(pool, startPointers[aterm]);
-              if(startPointers[aterm] == UNDEFINED_POINTER) {
-                break;
-              } else {
-                counts[aterm] = decompressDocidBlock(pool, blockDocid[aterm], startPointers[aterm]);
-                decompressTfBlock(pool, blockTf[aterm], startPointers[aterm]);
-                posting[aterm] = 0;
-              }
-            }
-          }
-        }
-      } else {
-        int aterm = mapping[0];
-        int atermIdx;
-        for(atermIdx = 0; atermIdx < MIN(pTermIdx + 1, len); atermIdx++) {
-          if(df[mapping[atermIdx]] <= df[aterm] &&
-             blockDocid[mapping[atermIdx]][posting[mapping[atermIdx]]] < pivot) {
-            int atermTemp = mapping[atermIdx];
-
-            if(posting[atermTemp] >= counts[atermTemp] - 1 &&
-               nextPointer(pool, startPointers[atermTemp]) == UNDEFINED_POINTER) {
-              int k = 0;
-              for(i = 0; i < len; i++) {
-                if(i != atermIdx) {
-                mapping[k++] = mapping[i];
-                }
-              }
-              len--;
-              atermIdx--;
-              continue;
-            }
-            aterm = atermTemp;
-          }
-        }
-
-        while(blockDocid[aterm][posting[aterm]] < pivot) {
-          posting[aterm]++;
-          if(posting[aterm] >= counts[aterm] - 1) {
-            startPointers[aterm] = nextPointer(pool, startPointers[aterm]);
-            if(startPointers[aterm] == UNDEFINED_POINTER) {
-              break;
-            } else {
-              counts[aterm] = decompressDocidBlock(pool, blockDocid[aterm], startPointers[aterm]);
-              decompressTfBlock(pool, blockTf[aterm], startPointers[aterm]);
-              posting[aterm] = 0;
-            }
-          }
-        }
-      }
-
-      for(i = 0; i < len; i++) {
-        for(j = i + 1; j < len; j++) {
-          if(blockDocid[mapping[i]][posting[mapping[i]]] >
-             blockDocid[mapping[j]][posting[mapping[j]]]) {
-            int temp = mapping[i];
-            mapping[i] = mapping[j];
-            mapping[j] = temp;
-          }
+    for(i = 0; i < len; i++) {
+      for(j = i + 1; j < len; j++) {
+        if(blockDocid[mapping[i]][posting[mapping[i]]] >
+           blockDocid[mapping[j]][posting[mapping[j]]]) {
+          int temp = mapping[i];
+          mapping[i] = mapping[j];
+          mapping[j] = temp;
         }
       }
     }
