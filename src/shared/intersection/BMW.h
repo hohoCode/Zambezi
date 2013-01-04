@@ -84,7 +84,7 @@ int* bmw(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
 
     // NextShallow() and CheckBlockMax()
     float blockMaxScore = 0.0;
-    int candidate = pivot + 1;
+    int candidate = 0;
     for(i = 0; i <= pTermIdx; i++) {
       int iterm = mapping[i];
       int maxid;
@@ -98,11 +98,10 @@ int* bmw(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
         }
       }
 
-      maxid++;
-      if(maxid < candidate) {
-        candidate = maxid;
-      }
-      if(getBlockMaxDocid(pool, startPointers[iterm]) >= pivot) {
+      if(maxid >= pivot) {
+        if(candidate == 0 || maxid + 1 < candidate) {
+          candidate = maxid + 1;
+        }
         if(blockChanged[iterm]) {
           blockMaxScores[iterm] = bm25(getBlockMaxTf(pool, startPointers[iterm]),
                                        df[iterm], totalDocs,
@@ -164,6 +163,12 @@ int* bmw(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
             decompressTfBlock(pool, blockTf[aterm], startPointers[aterm]);
             posting[aterm] = 0;
           }
+        }
+        if(blockDocid[aterm][posting[aterm]] == 88598) {
+          float a = bm25(blockTf[aterm][posting[aterm]],
+                         df[aterm], totalDocs,
+                         docLen[88598],
+                         avgDocLen);
         }
       }
 
