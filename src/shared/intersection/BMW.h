@@ -152,7 +152,7 @@ int* bmw(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
 
       while(blockDocid[aterm][posting[aterm]] < candidate) {
         posting[aterm]++;
-        if(posting[aterm] >= counts[aterm] - 1) {
+        if(posting[aterm] > counts[aterm] - 1) {
           long newPointer = nextPointer(pool, startPointers[aterm]);
           if(newPointer == UNDEFINED_POINTER) {
             break;
@@ -216,7 +216,7 @@ int* bmw(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
 
         while(blockDocid[aterm][posting[aterm]] <= pivot) {
           posting[aterm]++;
-          if(posting[aterm] >= counts[aterm] - 1) {
+          if(posting[aterm] > counts[aterm] - 1) {
             long newPointer = nextPointer(pool, startPointers[aterm]);
             if(newPointer == UNDEFINED_POINTER) {
               break;
@@ -262,7 +262,7 @@ int* bmw(PostingsPool* pool, long* startPointers, int* df, float* UB, int len,
 
       while(blockDocid[aterm][posting[aterm]] < pivot) {
         posting[aterm]++;
-        if(posting[aterm] >= counts[aterm] - 1) {
+        if(posting[aterm] > counts[aterm] - 1) {
           long newPointer = nextPointer(pool, startPointers[aterm]);
           if(newPointer == UNDEFINED_POINTER) {
             break;
