@@ -39,6 +39,27 @@ InvertedIndex* createInvertedIndex() {
   return index;
 }
 
+int hasValidPostingsList(InvertedIndex* index, int termid) {
+  return getStartPointer(index->pointers, termid) != UNDEFINED_POINTER;
+}
+
+/**
+ * An iterator over terms with a valid StartPointer.
+ * Call this function as follows:
+ *
+ *   int term = -1;
+ *   while((term = nextTerm(pointers, term)) != -1) {
+ *     ...
+ *   }
+ */
+int nextTermId(InvertedIndex* index, int currentTermId) {
+  return nextIndexFixedLongCounter(index->pointers->startPointers, currentTermId);
+}
+
+int getDf_InvertedIndex(InvertedIndex* index, int term) {
+  return getFixedIntCounter(index->pointers->df, term);
+}
+
 void destroyInvertedIndex(InvertedIndex* index) {
   destroyPostingsPool(index->pool);
   destroyDictionary(index->dictionary);
