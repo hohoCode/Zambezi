@@ -9,6 +9,7 @@
 #include "Pointers.h"
 #include "Config.h"
 #include "InvertedIndex.h"
+#include "PostingsList.h"
 
 int main (int argc, char** args) {
   char* inputPath = getValueCL(argc, args, "-index");
@@ -23,41 +24,37 @@ int main (int argc, char** args) {
     // Read term id for the input term
     int termid = getTermId(index->dictionary, inputTerm);
 
-    // Read StartPointer for the given term and check whether
-    // the pointer is valid
-    long pointer = getStartPointer(index->pointers, termid);
-
-    if(pointer == UNDEFINED_POINTER) {
+    // Check whether "termid" has valid postings (terms with
+    // df < df-cutoff do not have postings stored in the index)
+    if(!hasValidPostingsList(index, termid)) {
       printf("No postings for term %s\n", inputTerm);
       return -1;
     }
 
-    // Read postings for the given term, one segment at a time
-    int* docid = (int*) calloc(BLOCK_SIZE, sizeof(int));
-    while(pointer != UNDEFINED_POINTER) {
-      // Decompress one docid block. The return value is the number
-      // of docids decompressed
-      int count = decompressDocidBlock(index->pool, docid, pointer);
+    // Retrieve PostingsList for "termid"
+    PostingsList* list = getPostingsList(index, termid);
 
-      // Print docids
-      int i = 0;
-      for(i = 0; i < count; i++) {
-        printf("%d ", docid[i]);
-      }
+    // Read postings for the given term, one document id at a time
+    while(hasNext(list)) {
+      // Load the next document id and tf
+      nextPosting(list);
 
-      // Set the pointer to the next pointer
-      pointer = nextPointer(index->pool, pointer);
+      // Print docid and tf
+      printf("%d:%d ", getDocumentId(list), getTermFrequency(list));
     }
     printf("\n");
-    free(docid);
+
+    // Free the allocated space
+    destroyPostingsList(list);
   } else {
     // Print df for all terms that have a valid StartPointer
     int term = -1;
-    while((term = nextTerm(index->pointers, term)) != -1) {
-      printf("termid: %d  df: %d\n", term, getDf(index->pointers, term));
+    while((term = nextTermId(index, term)) != -1) {
+      printf("termid: %d  df: %d\n", term, getDf_InvertedIndex(index, term));
     }
   }
 
+  // Free the allocated space
   destroyInvertedIndex(index);
   return 0;
 }

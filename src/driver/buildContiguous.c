@@ -49,7 +49,18 @@ int main (int argc, char** args) {
     long newPointer = readPostingsForTerm(contiguousPool, pointer, fp);
     setStartPointer(contiguousPointers, term, newPointer);
     setDf(contiguousPointers, term, getDf(pointers, term));
+    setMaxTf(contiguousPointers, term,
+             getMaxTf(pointers, term),
+             getMaxTfDocLen(pointers, term));
   }
+
+  int docid = -1;
+  while((docid = nextIndexFixedIntCounter(pointers->docLen, docid)) != -1) {
+    setDocLen(contiguousPointers, docid, pointers->docLen->counter[docid]);
+  }
+
+  contiguousPointers->totalDocs = pointers->totalDocs;
+  contiguousPointers->totalDocLen = pointers->totalDocLen;
   fclose(fp);
   //end sorting index
 

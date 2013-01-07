@@ -244,6 +244,9 @@ long compressAndAddPositional(PostingsPool* pool, unsigned int* data,
  * then this function returns UNDEFINED_POINTER.
  */
 long nextPointer(PostingsPool* pool, long pointer) {
+  if(pointer == UNDEFINED_POINTER) {
+    return UNDEFINED_POINTER;
+  }
   int pSegment = DECODE_SEGMENT(pointer);
   unsigned int pOffset = DECODE_OFFSET(pointer);
 

@@ -12,6 +12,7 @@
 #include "buffer/FixedLongCounter.h"
 #include "buffer/IntSet.h"
 #include "util/ParseCommandLine.h"
+#include "scorer/BM25.h"
 #include "PostingsPool.h"
 #include "Pointers.h"
 #include "Config.h"
@@ -115,6 +116,7 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
         data->buffer->tf[id] = curtfBuffer;
       }
       curtfBuffer[data->buffer->valuePosition[id]]++;
+      position++;
     } else if(data->positional == POSITIONAL) {
       int* curtfBuffer = getTfDynamicBuffer(data->buffer, id);
       int* curBuffer = data->buffer->position[id];
@@ -170,10 +172,27 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
     grabword(line, ' ', &consumed);
   }
 
+  setDocLen(index->pointers, docid, position);
+  index->pointers->totalDocLen += position;
+  index->pointers->totalDocs++;
+
   // Iterate over all unique terms
   int keyPos = -1;
   while((keyPos = nextIndexIntSet(data->uniqueTerms, keyPos)) != -1) {
     int id = data->uniqueTerms->key[keyPos];
+
+    int tf = data->buffer->tf[id][data->buffer->valuePosition[id]];
+    int dl = getDocLen(index->pointers, docid);
+    float bm25TfScore = bm25tf(tf, dl,
+                             index->pointers->totalDocLen /
+                             ((float) index->pointers->totalDocs));
+    float maxBm25TfScore = bm25tf(getMaxTf(index->pointers, id),
+                                getMaxTfDocLen(index->pointers, id),
+                                index->pointers->totalDocLen /
+                                ((float) index->pointers->totalDocs));
+    if(bm25TfScore > maxBm25TfScore) {
+      setMaxTf(index->pointers, id, tf, dl);
+    }
 
     // Reset the "current position" stored at the end of position buffer
     if(data->positional == POSITIONAL) {
