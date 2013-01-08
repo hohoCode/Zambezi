@@ -77,6 +77,10 @@ void setStartPointer(Pointers* pointers, int term, long sp) {
   setFixedLongCounter(pointers->startPointers, term, sp);
 }
 
+int nextTerm(Pointers* pointers, int currentTermId) {
+  return nextIndexFixedLongCounter(pointers->startPointers, currentTermId);
+}
+
 void writePointers(Pointers* pointers, FILE* fp) {
   int size = sizeFixedLongCounter(pointers->startPointers);
   fwrite(&size, sizeof(unsigned int), 1, fp);
