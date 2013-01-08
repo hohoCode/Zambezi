@@ -10,64 +10,49 @@
 #define BLOOM_FILTER_ONE (unsigned int) 1
 #define DEFAULT_HASH_SEED (unsigned int) 0x7ed55d16
 
-typedef struct BloomFilter BloomFilter;
-
-struct BloomFilter {
-  unsigned int *bits;
-  unsigned int size;
-  unsigned int (*hash)(unsigned int value, unsigned int seed);
-  unsigned int nbHash;
-};
-
-BloomFilter* createFilters(int size) {
-  BloomFilter* filters = (BloomFilter*) malloc(size * sizeof(BloomFilter));
-  return filters;
+unsigned int hash(unsigned int a, unsigned int seed) {
+  a = (a+seed) + (a<<12);
+  a = (a^0xc761c23c) ^ (a>>19);
+  a = (a+0x165667b1) + (a<<5);
+  a = (a+0xd3a2646c) ^ (a<<9);
+  a = (a+0xfd7046c5) + (a<<3);
+  return (a^0xb55a4f09) ^ (a>>16);
 }
 
-void destroy(BloomFilter* filter) {
-  free(filter->bits);
-}
-
-void initialize(BloomFilter* filter, unsigned int size,
-                            unsigned int (*hash)(unsigned int, unsigned int), int nbHash) {
-  int r = size >> BLOOM_FILTER_UNIT_EXP;
-  int m = size & BLOOM_FILTER_UNIT_SIZE_1;
+void computeBloomFilterLength(unsigned int df) {
+  int r = df >> BLOOM_FILTER_UNIT_EXP;
+  int m = df & BLOOM_FILTER_UNIT_SIZE_1;
   int length = r;
   if(m != 0) {
     length = r + 1;
   }
-
-  filter->bits = (unsigned int*) malloc(length * sizeof(unsigned int));
-  filter->size = size;
-  filter->hash = hash;
-  filter->nbHash = nbHash;
-
-  int i = 0;
-  for (i = 0; i < length; i++) {
-    filter->bits[i] = 0;
-  }
+  return length;
 }
 
-void add(BloomFilter* filter, unsigned int value) {
+void insertIntoBloomFilter(unsigned int* filter, unsigned int filterSize,
+                           int nbHash, unsigned int value) {
   unsigned int seed = DEFAULT_HASH_SEED;
   unsigned int h;
   int i = 0;
-  for(i = 0; i < filter->nbHash; i++) {
-    seed = filter->hash(value, seed);
-    h = seed % filter->size;
-    filter->bits[h>>BLOOM_FILTER_UNIT_EXP] |= BLOOM_FILTER_ONE<<(BLOOM_FILTER_UNIT_SIZE_1
-                                                                 - (h & BLOOM_FILTER_UNIT_SIZE_1));
+  for(i = 0; i < nbHash; i++) {
+    seed = hash(value, seed);
+    h = seed % filterSize;
+    filter[h>>BLOOM_FILTER_UNIT_EXP] |=
+      BLOOM_FILTER_ONE<<(BLOOM_FILTER_UNIT_SIZE_1
+                         - (h & BLOOM_FILTER_UNIT_SIZE_1));
   }
 }
 
-int contains(BloomFilter* filter, unsigned int value) {
+int containsBloomFilter(unsigned int* filter, unsigned int filterSize,
+                        int nbHash, unsigned int value) {
   unsigned int seed = DEFAULT_HASH_SEED;
   unsigned int h;
   int i = 0;
-  for(i = 0; i < filter->nbHash; i++) {
-    seed = filter->hash(value, seed);
-    h = seed % filter->size;
-    if(!(filter->bits[h>>BLOOM_FILTER_UNIT_EXP]>>(BLOOM_FILTER_UNIT_SIZE_1 - (h&BLOOM_FILTER_UNIT_SIZE_1)) & 1)) {
+  for(i = 0; i < nbHash; i++) {
+    seed = hash(value, seed);
+    h = seed % filterSize;
+    if(!(filter[h>>BLOOM_FILTER_UNIT_EXP]>>(BLOOM_FILTER_UNIT_SIZE_1 -
+                                            (h&BLOOM_FILTER_UNIT_SIZE_1)) & 1)) {
       return 0;
     }
   }
