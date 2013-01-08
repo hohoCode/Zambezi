@@ -420,9 +420,11 @@ int containsDocid(PostingsPool* pool, unsigned int docid, long* pointer) {
   unsigned int pOffset = DECODE_OFFSET(*pointer);
 
   while(pool->pool[pSegment][pOffset + 3] < docid) {
-    pSegment = pool->pool[pSegment][pOffset + 1];
-    pOffset = pool->pool[pSegment][pOffset + 2];
-    if(pSegment < 0) {
+    int nSegment = pool->pool[pSegment][pOffset + 1];
+    int nOffset = pool->pool[pSegment][pOffset + 2];
+    pSegment = nSegment;
+    pOffset = nOffset;
+    if(pSegment == UNKNOWN_SEGMENT) {
       (*pointer) = UNDEFINED_POINTER;
       return 0;
     }
