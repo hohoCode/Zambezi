@@ -181,17 +181,19 @@ int process(InvertedIndex* index, IndexingData* data, char* line, int termid) {
   while((keyPos = nextIndexIntSet(data->uniqueTerms, keyPos)) != -1) {
     int id = data->uniqueTerms->key[keyPos];
 
-    int tf = data->buffer->tf[id][data->buffer->valuePosition[id]];
-    int dl = getDocLen(index->pointers, docid);
-    float bm25TfScore = bm25tf(tf, dl,
-                             index->pointers->totalDocLen /
-                             ((float) index->pointers->totalDocs));
-    float maxBm25TfScore = bm25tf(getMaxTf(index->pointers, id),
-                                getMaxTfDocLen(index->pointers, id),
-                                index->pointers->totalDocLen /
-                                ((float) index->pointers->totalDocs));
-    if(bm25TfScore > maxBm25TfScore) {
-      setMaxTf(index->pointers, id, tf, dl);
+    if(data->positional == TFONLY || data->positional == POSITIONAL) {
+      int tf = data->buffer->tf[id][data->buffer->valuePosition[id]];
+      int dl = getDocLen(index->pointers, docid);
+      float bm25TfScore = bm25tf(tf, dl,
+                                 index->pointers->totalDocLen /
+                                 ((float) index->pointers->totalDocs));
+      float maxBm25TfScore = bm25tf(getMaxTf(index->pointers, id),
+                                    getMaxTfDocLen(index->pointers, id),
+                                    index->pointers->totalDocLen /
+                                    ((float) index->pointers->totalDocs));
+      if(bm25TfScore > maxBm25TfScore) {
+        setMaxTf(index->pointers, id, tf, dl);
+      }
     }
 
     // Reset the "current position" stored at the end of position buffer
