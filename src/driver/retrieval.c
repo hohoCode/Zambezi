@@ -14,13 +14,15 @@
 #include "InvertedIndex.h"
 #include "intersection/SvS.h"
 #include "intersection/WAND.h"
+#include "intersection/BWAND.h"
 
 #ifndef RETRIEVAL_ALGO_ENUM_GUARD
 #define RETRIEVAL_ALGO_ENUM_GUARD
 typedef enum Algorithm Algorithm;
 enum Algorithm {
   SVS = 0,
-  WAND = 1
+  WAND = 1,
+  BWAND = 2
 };
 #endif
 
@@ -47,8 +49,10 @@ int main (int argc, char** args) {
     algorithm = SVS;
   } else if(!strcmp(intersectionAlgorithm, "WAND")) {
     algorithm = WAND;
+  } else if(!strcmp(intersectionAlgorithm, "BWAND")) {
+    algorithm = BWAND;
   } else {
-    printf("Invalid algorithm (Options: SvS | WAND)\n");
+    printf("Invalid algorithm (Options: SvS | WAND | BWAND)\n");
     return;
   }
 
@@ -155,6 +159,13 @@ int main (int argc, char** args) {
                  index->pointers->totalDocs,
                  index->pointers->totalDocLen / (float) index->pointers->totalDocs,
                  hits);
+      free(UB);
+    } else if(algorithm == BWAND) {
+      float* UB = (float*) malloc(qlen * sizeof(float));
+      for(i = 0; i < qlen; i++) {
+        UB[i] = idf(index->pointers->totalDocs, qdf[i]);
+      }
+      set = bwand(index->pool, qStartPointers, UB, qlen, hits);
       free(UB);
     }
 

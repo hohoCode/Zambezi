@@ -432,7 +432,7 @@ int containsDocid(PostingsPool* pool, unsigned int docid, long* pointer) {
     return 1;
   }
 
-  unsigned int bloomOffset = pool->pool[pSegment][pOffset + 6];
+  unsigned int bloomOffset = pool->pool[pSegment][pOffset + 4];
   (*pointer) == ENCODE_POINTER(pSegment, pOffset);
   return containsBloomFilter(&pool->pool[pSegment][pOffset + bloomOffset + 1],
                              pool->pool[pSegment][pOffset + bloomOffset],
