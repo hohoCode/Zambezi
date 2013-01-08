@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "pfordelta/opt_p4.h"
+#include "bloom/BloomFilter.h"
 
 #define MAX_INT_VALUE ((unsigned int) 0xFFFFFFFF)
 #define UNDEFINED_POINTER -1l
@@ -21,11 +22,19 @@ struct PostingsPool {
   unsigned int segment;
   unsigned int offset;
   int** pool;
+
+  // if Bloom filters enabled
+  int bloomEnabled;
+  unsigned int nbHash;
+  unsigned int bitsPerElement;
 };
 
 void writePostingsPool(PostingsPool* pool, FILE* fp) {
   fwrite(&pool->segment, sizeof(unsigned int), 1, fp);
   fwrite(&pool->offset, sizeof(unsigned int), 1, fp);
+  fwrite(&pool->bloomEnabled, sizeof(int), 1, fp);
+  fwrite(&pool->nbHash, sizeof(unsigned int), 1, fp);
+  fwrite(&pool->bitsPerElement, sizeof(unsigned int), 1, fp);
 
   int i;
   for(i = 0; i < pool->segment; i++) {
@@ -38,6 +47,9 @@ PostingsPool* readPostingsPool(FILE* fp) {
   PostingsPool* pool = (PostingsPool*) malloc(sizeof(PostingsPool));
   fread(&pool->segment, sizeof(unsigned int), 1, fp);
   fread(&pool->offset, sizeof(unsigned int), 1, fp);
+  fread(&pool->bloomEnabled, sizeof(int), 1, fp);
+  fread(&pool->nbHash, sizeof(unsigned int), 1, fp);
+  fread(&pool->bitsPerElement, sizeof(unsigned int), 1, fp);
 
   pool->pool = (int**) malloc((pool->segment + 1) * sizeof(int*));
   int i;
@@ -50,7 +62,8 @@ PostingsPool* readPostingsPool(FILE* fp) {
   return pool;
 }
 
-PostingsPool* createPostingsPool(int numberOfPools) {
+PostingsPool* createPostingsPool(int numberOfPools, int bloomEnabled,
+                                 int nbHash, int bitsPerElement) {
   PostingsPool* pool = (PostingsPool*) malloc(sizeof(PostingsPool));
   pool->pool = (int**) malloc(numberOfPools * sizeof(int*));
   int i;
@@ -60,6 +73,9 @@ PostingsPool* createPostingsPool(int numberOfPools) {
   pool->segment = 0;
   pool->offset = 0;
   pool->numberOfPools = numberOfPools;
+  pool->bloomEnabled = bloomEnabled;
+  pool->nbHash = nbHash;
+  pool->bitsPerElement = bitsPerElement;
   return pool;
 }
 
@@ -81,10 +97,23 @@ long compressAndAddNonPositional(PostingsPool* pool, unsigned int* data,
     lastOffset = DECODE_OFFSET(tailPointer);
   }
 
+  // Construct a Bloom filter if required
+  unsigned int* filter = 0;
+  unsigned int filterSize = 0;
+  if(pool->bloomEnabled) {
+    filterSize = computeBloomFilterLength(len, pool->bitsPerElement);
+    filter = (unsigned int*) calloc(filterSize, sizeof(unsigned int));
+    int i;
+    for(i = 0; i < len; i++) {
+      insertIntoBloomFilter(filter, filterSize, pool->nbHash, data[i]);
+    }
+  }
+
+  unsigned int maxDocId = data[len - 1];
   unsigned int* block = (unsigned int*) calloc(BLOCK_SIZE*2, sizeof(unsigned int));
   unsigned int csize = OPT4(data, len, block, 1);
 
-  int reqspace = csize + 5;
+  int reqspace = csize + filterSize + 8;
   if(reqspace > (MAX_INT_VALUE - pool->offset)) {
     pool->segment++;
     pool->offset = 0;
@@ -93,11 +122,20 @@ long compressAndAddNonPositional(PostingsPool* pool, unsigned int* data,
   pool->pool[pool->segment][pool->offset] = reqspace;
   pool->pool[pool->segment][pool->offset + 1] = UNKNOWN_SEGMENT;
   pool->pool[pool->segment][pool->offset + 2] = 0;
-  pool->pool[pool->segment][pool->offset + 3] = len;
-  pool->pool[pool->segment][pool->offset + 4] = csize;
+  pool->pool[pool->segment][pool->offset + 3] = maxDocId;
+  // where Bloom filters are stored, if stored at all
+  pool->pool[pool->segment][pool->offset + 4] = csize + 7;
+  pool->pool[pool->segment][pool->offset + 5] = len;
+  pool->pool[pool->segment][pool->offset + 6] = csize;
 
-  memcpy(&pool->pool[pool->segment][pool->offset + 5],
+  memcpy(&pool->pool[pool->segment][pool->offset + 7],
          block, csize * sizeof(int));
+
+  if(filter) {
+    pool->pool[pool->segment][pool->offset + csize + 7] = filterSize;
+    memcpy(&pool->pool[pool->segment][pool->offset + csize + 8],
+           filter, filterSize * sizeof(int));
+  }
 
   if(lastSegment >= 0) {
     pool->pool[lastSegment][lastOffset + 1] = pool->segment;
@@ -108,6 +146,7 @@ long compressAndAddNonPositional(PostingsPool* pool, unsigned int* data,
   pool->offset += reqspace;
 
   free(block);
+  if(filter) free(filter);
   return newPointer;
 }
 
@@ -120,12 +159,25 @@ long compressAndAddTfOnly(PostingsPool* pool, unsigned int* data,
     lastOffset = DECODE_OFFSET(tailPointer);
   }
 
+  // Construct a Bloom filter if required
+  unsigned int* filter = 0;
+  unsigned int filterSize = 0;
+  if(pool->bloomEnabled) {
+    filterSize = computeBloomFilterLength(len, pool->bitsPerElement);
+    filter = (unsigned int*) calloc(filterSize, sizeof(unsigned int));
+    int i;
+    for(i = 0; i < len; i++) {
+      insertIntoBloomFilter(filter, filterSize, pool->nbHash, data[i]);
+    }
+  }
+
+  unsigned int maxDocId = data[len - 1];
   unsigned int* block = (unsigned int*) calloc(BLOCK_SIZE*2, sizeof(unsigned int));
   unsigned int* tfblock = (unsigned int*) calloc(BLOCK_SIZE*2, sizeof(unsigned int));
   unsigned int csize = OPT4(data, len, block, 1);
   unsigned int tfcsize = OPT4(tf, len, tfblock, 0);
 
-  int reqspace = csize + tfcsize + 6;
+  int reqspace = csize + tfcsize + filterSize + 9;
   if(reqspace > (MAX_INT_VALUE - pool->offset)) {
     pool->segment++;
     pool->offset = 0;
@@ -134,15 +186,23 @@ long compressAndAddTfOnly(PostingsPool* pool, unsigned int* data,
   pool->pool[pool->segment][pool->offset] = reqspace;
   pool->pool[pool->segment][pool->offset + 1] = UNKNOWN_SEGMENT;
   pool->pool[pool->segment][pool->offset + 2] = 0;
-  pool->pool[pool->segment][pool->offset + 3] = len;
-  pool->pool[pool->segment][pool->offset + 4] = csize;
+  pool->pool[pool->segment][pool->offset + 3] = maxDocId;
+  pool->pool[pool->segment][pool->offset + 4] = csize + tfcsize + 8;
+  pool->pool[pool->segment][pool->offset + 5] = len;
+  pool->pool[pool->segment][pool->offset + 6] = csize;
 
-  memcpy(&pool->pool[pool->segment][pool->offset + 5],
+  memcpy(&pool->pool[pool->segment][pool->offset + 7],
          block, csize * sizeof(int));
 
-  pool->pool[pool->segment][pool->offset + 5 + csize] = tfcsize;
-  memcpy(&pool->pool[pool->segment][pool->offset + 6 + csize],
+  pool->pool[pool->segment][pool->offset + 7 + csize] = tfcsize;
+  memcpy(&pool->pool[pool->segment][pool->offset + 8 + csize],
          tfblock, tfcsize * sizeof(int));
+
+  if(filter) {
+    pool->pool[pool->segment][pool->offset + csize + tfcsize + 8] = filterSize;
+    memcpy(&pool->pool[pool->segment][pool->offset + 9 + csize + tfcsize],
+           filter, filterSize * sizeof(int));
+  }
 
   if(lastSegment >= 0) {
     pool->pool[lastSegment][lastOffset + 1] = pool->segment;
@@ -154,6 +214,7 @@ long compressAndAddTfOnly(PostingsPool* pool, unsigned int* data,
 
   free(block);
   free(tfblock);
+  if(filter) free(filter);
 
   return newPointer;
 }
@@ -168,6 +229,19 @@ long compressAndAddPositional(PostingsPool* pool, unsigned int* data,
     lastOffset = DECODE_OFFSET(tailPointer);
   }
 
+  // Construct a Bloom filter if required
+  unsigned int* filter = 0;
+  unsigned int filterSize = 0;
+  if(pool->bloomEnabled) {
+    filterSize = computeBloomFilterLength(len, pool->bitsPerElement);
+    filter = (unsigned int*) calloc(filterSize, sizeof(unsigned int));
+    int i;
+    for(i = 0; i < len; i++) {
+      insertIntoBloomFilter(filter, filterSize, pool->nbHash, data[i]);
+    }
+  }
+
+  unsigned int maxDocId = data[len - 1];
   int pblocksize = 3 * ((plen / BLOCK_SIZE) + 1) * BLOCK_SIZE;
   unsigned int* block = (unsigned int*) calloc(BLOCK_SIZE*2, sizeof(unsigned int));
   unsigned int* tfblock = (unsigned int*) calloc(BLOCK_SIZE*2, sizeof(unsigned int));
@@ -198,7 +272,7 @@ long compressAndAddPositional(PostingsPool* pool, unsigned int* data,
   }
   // end compressing positions
 
-  int reqspace = csize + tfcsize + pcsize + 8;
+  int reqspace = csize + tfcsize + pcsize + filterSize + 11;
   if(reqspace > (MAX_INT_VALUE - pool->offset)) {
     pool->segment++;
     pool->offset = 0;
@@ -207,20 +281,28 @@ long compressAndAddPositional(PostingsPool* pool, unsigned int* data,
   pool->pool[pool->segment][pool->offset] = reqspace;
   pool->pool[pool->segment][pool->offset + 1] = UNKNOWN_SEGMENT;
   pool->pool[pool->segment][pool->offset + 2] = 0;
-  pool->pool[pool->segment][pool->offset + 3] = len;
-  pool->pool[pool->segment][pool->offset + 4] = csize;
+  pool->pool[pool->segment][pool->offset + 3] = maxDocId;
+  pool->pool[pool->segment][pool->offset + 4] = csize + tfcsize + pcsize + 10;
+  pool->pool[pool->segment][pool->offset + 5] = len;
+  pool->pool[pool->segment][pool->offset + 6] = csize;
 
-  memcpy(&pool->pool[pool->segment][pool->offset + 5],
+  memcpy(&pool->pool[pool->segment][pool->offset + 7],
          block, csize * sizeof(int));
 
-  pool->pool[pool->segment][pool->offset + 5 + csize] = tfcsize;
-  memcpy(&pool->pool[pool->segment][pool->offset + 6 + csize],
+  pool->pool[pool->segment][pool->offset + 7 + csize] = tfcsize;
+  memcpy(&pool->pool[pool->segment][pool->offset + 8 + csize],
          tfblock, tfcsize * sizeof(int));
 
-  pool->pool[pool->segment][pool->offset + 6 + csize + tfcsize] = plen;
-  pool->pool[pool->segment][pool->offset + 7 + csize + tfcsize] = i;
-  memcpy(&pool->pool[pool->segment][pool->offset + 8 + csize + tfcsize],
+  pool->pool[pool->segment][pool->offset + 8 + csize + tfcsize] = plen;
+  pool->pool[pool->segment][pool->offset + 9 + csize + tfcsize] = i;
+  memcpy(&pool->pool[pool->segment][pool->offset + 10 + csize + tfcsize],
          pblock, pcsize * sizeof(int));
+
+  if(filter) {
+    pool->pool[pool->segment][pool->offset + csize + tfcsize + pcsize + 10] = filterSize;
+    memcpy(&pool->pool[pool->segment][pool->offset + 11 + csize + tfcsize + pcsize],
+         filter, filterSize * sizeof(int));
+  }
 
   if(lastSegment >= 0) {
     pool->pool[lastSegment][lastOffset + 1] = pool->segment;
@@ -233,6 +315,7 @@ long compressAndAddPositional(PostingsPool* pool, unsigned int* data,
   free(block);
   free(tfblock);
   free(pblock);
+  if(filter) free(filter);
 
   return newPointer;
 }
@@ -269,10 +352,10 @@ int decompressDocidBlock(PostingsPool* pool, unsigned int* outBlock, long pointe
   unsigned int pOffset = DECODE_OFFSET(pointer);
 
   unsigned int aux[BLOCK_SIZE*4];
-  unsigned int* block = &pool->pool[pSegment][pOffset + 5];
+  unsigned int* block = &pool->pool[pSegment][pOffset + 7];
   detailed_p4_decode(outBlock, block, aux, 1);
 
-  return pool->pool[pSegment][pOffset + 3];
+  return pool->pool[pSegment][pOffset + 5];
 }
 
 int decompressTfBlock(PostingsPool* pool, unsigned int* outBlock, long pointer) {
@@ -280,11 +363,11 @@ int decompressTfBlock(PostingsPool* pool, unsigned int* outBlock, long pointer) 
   unsigned int pOffset = DECODE_OFFSET(pointer);
 
   unsigned int aux[BLOCK_SIZE*4];
-  unsigned int csize = pool->pool[pSegment][pOffset + 4];
-  unsigned int* block = &pool->pool[pSegment][pOffset + csize + 6];
+  unsigned int csize = pool->pool[pSegment][pOffset + 6];
+  unsigned int* block = &pool->pool[pSegment][pOffset + csize + 8];
   detailed_p4_decode(outBlock, block, aux, 0);
 
-  return pool->pool[pSegment][pOffset + 3];
+  return pool->pool[pSegment][pOffset + 5];
 }
 
 /**
@@ -295,9 +378,9 @@ int numberOfPositionBlocks(PostingsPool* pool, long pointer) {
   int pSegment = DECODE_SEGMENT(pointer);
   unsigned int pOffset = DECODE_OFFSET(pointer);
 
-  unsigned int csize = pool->pool[pSegment][pOffset + 4];
-  unsigned int tfsize = pool->pool[pSegment][pOffset + 5 + csize];
-  return pool->pool[pSegment][pOffset + csize + tfsize + 7];
+  unsigned int csize = pool->pool[pSegment][pOffset + 6];
+  unsigned int tfsize = pool->pool[pSegment][pOffset + 7 + csize];
+  return pool->pool[pSegment][pOffset + csize + tfsize + 9];
 }
 
 /**
@@ -313,12 +396,12 @@ int decompressPositionBlock(PostingsPool* pool, unsigned int* outBlock, long poi
   unsigned int pOffset = DECODE_OFFSET(pointer);
 
   unsigned int aux[BLOCK_SIZE*4];
-  unsigned int csize = pool->pool[pSegment][pOffset + 4];
-  unsigned int tfsize = pool->pool[pSegment][pOffset + 5 + csize];
-  unsigned int nb = pool->pool[pSegment][pOffset + csize + tfsize + 7];
+  unsigned int csize = pool->pool[pSegment][pOffset + 6];
+  unsigned int tfsize = pool->pool[pSegment][pOffset + 7 + csize];
+  unsigned int nb = pool->pool[pSegment][pOffset + csize + tfsize + 9];
 
   int i;
-  unsigned int index = pOffset + csize + tfsize + 8;
+  unsigned int index = pOffset + csize + tfsize + 10;
   for(i = 0; i < nb; i++) {
     unsigned int sb = pool->pool[pSegment][index];
     unsigned int* block = &pool->pool[pSegment][index + 1];
@@ -326,7 +409,34 @@ int decompressPositionBlock(PostingsPool* pool, unsigned int* outBlock, long poi
     memset(aux, 0, BLOCK_SIZE * 4 * sizeof(unsigned int));
     index += sb + 1;
   }
-  return pool->pool[pSegment][pOffset + csize + tfsize + 6];
+  return pool->pool[pSegment][pOffset + csize + tfsize + 8];
+}
+
+int containsDocid(PostingsPool* pool, unsigned int docid, long* pointer) {
+  if(*pointer == UNDEFINED_POINTER) {
+    return 0;
+  }
+  int pSegment = DECODE_SEGMENT(*pointer);
+  unsigned int pOffset = DECODE_OFFSET(*pointer);
+
+  while(pool->pool[pSegment][pOffset + 3] < docid) {
+    pSegment = pool->pool[pSegment][pOffset + 1];
+    pOffset = pool->pool[pSegment][pOffset + 2];
+    if(pSegment < 0) {
+      (*pointer) = UNDEFINED_POINTER;
+      return 0;
+    }
+  }
+
+  if(pool->pool[pSegment][pOffset + 3] == docid) {
+    return 1;
+  }
+
+  unsigned int bloomOffset = pool->pool[pSegment][pOffset + 6];
+  (*pointer) == ENCODE_POINTER(pSegment, pOffset);
+  return containsBloomFilter(&pool->pool[pSegment][pOffset + bloomOffset + 1],
+                             pool->pool[pSegment][pOffset + bloomOffset],
+                             pool->nbHash, docid);
 }
 
 /**
@@ -342,7 +452,7 @@ long readPostingsForTerm(PostingsPool* pool, long pointer, FILE* fp) {
   unsigned int pOffset = DECODE_OFFSET(pointer);
 
   while(pSegment != UNKNOWN_SEGMENT) {
-    long pos = ((pSegment * (unsigned long) MAX_INT_VALUE) + pOffset) * 4 + 8;
+    long pos = ((pSegment * (unsigned long) MAX_INT_VALUE) + pOffset) * 4 + 20;
 
     fseek(fp, pos, SEEK_SET);
     int reqspace = 0;
@@ -376,6 +486,16 @@ long readPostingsForTerm(PostingsPool* pool, long pointer, FILE* fp) {
     pool->offset += reqspace;
   }
   return ENCODE_POINTER(sSegment, sOffset);
+}
+
+void readBloomStats(FILE* fp, int* bloomEnabled,
+                    unsigned int* nbHash, unsigned int* bitsPerElement) {
+  unsigned int temp;
+  fread(&temp, sizeof(unsigned int), 1, fp);
+  fread(&temp, sizeof(unsigned int), 1, fp);
+  fread(bloomEnabled, sizeof(int), 1, fp);
+  fread(nbHash, sizeof(unsigned int), 1, fp);
+  fread(bitsPerElement, sizeof(unsigned int), 1, fp);
 }
 
 #endif

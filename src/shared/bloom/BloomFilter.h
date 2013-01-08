@@ -19,7 +19,8 @@ unsigned int hash(unsigned int a, unsigned int seed) {
   return (a^0xb55a4f09) ^ (a>>16);
 }
 
-void computeBloomFilterLength(unsigned int df) {
+int computeBloomFilterLength(unsigned int df, int bitsPerElement) {
+  df *= bitsPerElement;
   int r = df >> BLOOM_FILTER_UNIT_EXP;
   int m = df & BLOOM_FILTER_UNIT_SIZE_1;
   int length = r;

@@ -40,7 +40,11 @@ int main (int argc, char** args) {
   strcat(indexPath, INDEX_FILE);
   fp = fopen(indexPath, "rb");
 
-  PostingsPool* contiguousPool = createPostingsPool(NUMBER_OF_POOLS);
+  int bloomEnabled;
+  unsigned int nbHash, bitsPerElement;
+  readBloomStats(fp, &bloomEnabled, &nbHash, &bitsPerElement);
+  PostingsPool* contiguousPool = createPostingsPool(NUMBER_OF_POOLS, bloomEnabled,
+                                                    nbHash, bitsPerElement);
   Pointers* contiguousPointers = createPointers(DEFAULT_VOCAB_SIZE);
 
   int term = -1;
