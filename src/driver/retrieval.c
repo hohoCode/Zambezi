@@ -14,13 +14,15 @@
 #include "InvertedIndex.h"
 #include "intersection/SvS.h"
 #include "intersection/WAND.h"
+#include "intersection/Bloom.h"
 
 #ifndef RETRIEVAL_ALGO_ENUM_GUARD
 #define RETRIEVAL_ALGO_ENUM_GUARD
 typedef enum Algorithm Algorithm;
 enum Algorithm {
   SVS = 0,
-  WAND = 1
+  WAND = 1,
+  BLOOM = 2
 };
 #endif
 
@@ -36,6 +38,12 @@ int main (int argc, char** args) {
   if(isPresentCL(argc, args, "-hits")) {
     hits = atoi(getValueCL(argc, args, "-hits"));
   }
+
+  char* bloomInput = NULL;
+  if(isPresentCL(argc, args, "-bloom")) {
+    bloomInput = getValueCL(argc, args, "-bloom");
+  }
+
   // Algorithm
   char* intersectionAlgorithm = getValueCL(argc, args, "-algorithm");
   Algorithm algorithm = SVS;
@@ -43,17 +51,27 @@ int main (int argc, char** args) {
   // Algorithm is limited to the following list (case sensitive):
   // - SvS (conjunctive)
   // - WAND (disjunctive)
+  // - Bloom (conjunctive). Only when -bloom is used.
   if(!strcmp(intersectionAlgorithm, "SvS")) {
     algorithm = SVS;
   } else if(!strcmp(intersectionAlgorithm, "WAND")) {
     algorithm = WAND;
+  } else if(!strcmp(intersectionAlgorithm, "Bloom") &&
+            bloomInput) {
+    algorithm = BLOOM;
   } else {
-    printf("Invalid algorithm (Options: SvS | WAND)\n");
+    printf("Invalid algorithm (Options: SvS | WAND | BLOOM)\n");
     return;
   }
 
   // Read the inverted index
   InvertedIndex* index = readInvertedIndex(inputPath);
+  BloomIndex* bloom = NULL;
+  if(bloomInput) {
+    FILE* fp = fopen(bloomInput, "rb");
+    bloom = readBloomIndex(fp);
+    fclose(fp);
+  }
 
   // Read queries. Query file must be in the following format:
   // - First line: <number of queries: integer>
@@ -140,6 +158,15 @@ int main (int argc, char** args) {
     if(algorithm == SVS) {
       hits = minimumDf;
       set = intersectSvS(index->pool, qStartPointers, qlen, minimumDf);
+    } else if(algorithm == BLOOM) {
+      int* sortedTerms = (int*) calloc(qlen, sizeof(int));
+      for(i = 0; i < qlen; i++) {
+        sortedTerms[i] = queries[qindex][sortedDfIndex[i]];
+      }
+      hits = minimumDf;
+      set = intersectBloom(index->pool, bloom, qStartPointers, sortedTerms,
+                           qlen, minimumDf);
+      free(sortedTerms);
     } else if(algorithm == WAND) {
       float* UB = (float*) malloc(qlen * sizeof(float));
       for(i = 0; i < qlen; i++) {
@@ -190,5 +217,6 @@ int main (int argc, char** args) {
   destroyFixedIntCounter(queryLength);
   destroyFixedIntCounter(idToIndexMap);
   destroyInvertedIndex(index);
+  if(bloom) destroyBloomIndex(bloom);
   return 0;
 }
