@@ -384,11 +384,18 @@ int main (int argc, char** args) {
   } else if(isPresentCL(argc, args, "-tf")) {
     positional = TFONLY;
   }
+  // Whether to store Bloom filter representation of docids
+  int bloomEnabled = isPresentCL(argc, args, "-bloom");
+  unsigned int nbHash, bitsPerElement;
+  if(bloomEnabled) {
+    nbHash = atoi(getValueCL(argc, args, "-k"));
+    bitsPerElement = atoi(getValueCL(argc, args, "-r"));
+  }
   // List of input files (must be the last argument)
   int inputBeginIndex = isPresentCL(argc, args, "-input") + 1;
 
   // Creating and initializing the inverted index and its auxiliary data structures
-  InvertedIndex* index = createInvertedIndex();
+  InvertedIndex* index = createInvertedIndex(bloomEnabled, nbHash, bitsPerElement);
   IndexingData* data = (IndexingData*) malloc(sizeof(IndexingData));
   data->buffer = createDynamicBuffer(DEFAULT_VOCAB_SIZE, positional);
   if(positional == POSITIONAL) {
