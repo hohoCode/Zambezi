@@ -87,9 +87,11 @@ void resetFixedIntCounter(FixedIntCounter* counter, unsigned int index) {
 
 int nextIndexFixedIntCounter(FixedIntCounter* counter, int pos) {
   pos++;
+  //printf("pos %d\n", pos);
   if(pos >= counter->vocabSize) {
     return -1;
   }
+
 
   while(counter->counter[pos] == counter->defaultValue) {
     pos++;
