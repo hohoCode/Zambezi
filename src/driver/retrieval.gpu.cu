@@ -99,7 +99,7 @@ int main (int argc, char** args) {
   id = -1;
 
 /////////////////////// CUDA Entry
-  SvS(queryLength, idToIndexMap, outputPath, queries, index);
+  SvS_GPU(queryLength, idToIndexMap, outputPath, queries, index, fp);
 //////////////////////
 
   if(outputPath) {
@@ -117,8 +117,8 @@ int main (int argc, char** args) {
   return 0;
 }
 
-void SvS(FixedIntCounter* queryLength, FixedIntCounter* idToIndexMap, char* outputPath, 
-											unsigned int** queries, InvertedIndex* index){
+void SvS_GPU(FixedIntCounter* queryLength, FixedIntCounter* idToIndexMap, char* outputPath, unsigned int** queries, InvertedIndex* 
+index, FILE * fp){
 	int i, j, id;
 	int fqlen, pos, termid;	
 	int hits = 1000;
