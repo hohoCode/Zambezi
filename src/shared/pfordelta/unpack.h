@@ -10,7 +10,7 @@
 /* supported bit lengths */
 int cnum[17] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,16,20,32};
 
-void unpack0(unsigned int *p, unsigned int *w)
+__host__ __device__ void unpack0(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -18,7 +18,7 @@ void unpack0(unsigned int *p, unsigned int *w)
 }
 
 
-void unpack1(unsigned int *p, unsigned int *w)
+__host__ __device__ void unpack1(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -60,7 +60,7 @@ void unpack1(unsigned int *p, unsigned int *w)
 }
 
 
-void unpack2(unsigned int *p, unsigned int *w)
+__host__ __device__ void unpack2(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -102,7 +102,7 @@ void unpack2(unsigned int *p, unsigned int *w)
 }
 
 
-void unpack3(unsigned int *p, unsigned int *w)
+__host__ __device__ void unpack3(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -146,7 +146,7 @@ void unpack3(unsigned int *p, unsigned int *w)
 }
 
 
-void unpack4(unsigned int *p, unsigned int *w)
+__host__ __device__ void unpack4(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -188,7 +188,7 @@ void unpack4(unsigned int *p, unsigned int *w)
 }
 
 
-void unpack5(unsigned int *p, unsigned int *w)
+__host__ __device__ void unpack5(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -234,7 +234,7 @@ void unpack5(unsigned int *p, unsigned int *w)
 }
 
 
-void unpack6(unsigned int *p, unsigned int *w)
+__host__ __device__ void unpack6(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -280,7 +280,7 @@ void unpack6(unsigned int *p, unsigned int *w)
 }
 
 
-void unpack7(unsigned int *p, unsigned int *w)
+__host__ __device__ void unpack7(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -328,7 +328,7 @@ void unpack7(unsigned int *p, unsigned int *w)
 }
 
 
-void unpack8(unsigned int *p, unsigned int *w)
+__host__ __device__ void unpack8(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -370,7 +370,7 @@ void unpack8(unsigned int *p, unsigned int *w)
 }
 
 
-void unpack9(unsigned int *p, unsigned int *w)
+__host__ __device__ void unpack9(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -420,7 +420,7 @@ void unpack9(unsigned int *p, unsigned int *w)
 }
 
 
-void unpack10(unsigned int *p, unsigned int *w)
+__host__ __device__ void unpack10(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -470,7 +470,7 @@ void unpack10(unsigned int *p, unsigned int *w)
 }
 
 
-void unpack11(unsigned int *p, unsigned int *w)
+__host__ __device__ void unpack11(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -522,7 +522,7 @@ void unpack11(unsigned int *p, unsigned int *w)
 }
 
 
-void unpack12(unsigned int *p, unsigned int *w)
+__host__ __device__ void unpack12(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -572,7 +572,7 @@ void unpack12(unsigned int *p, unsigned int *w)
 }
 
 
-void unpack13(unsigned int *p, unsigned int *w)
+__host__ __device__ void unpack13(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -626,7 +626,7 @@ void unpack13(unsigned int *p, unsigned int *w)
 }
 
 
-void unpack16(unsigned int *p, unsigned int *w)
+__host__ __device__ void unpack16(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -668,7 +668,7 @@ void unpack16(unsigned int *p, unsigned int *w)
 }
 
 
-void unpack20(unsigned int *p, unsigned int *w)
+__host__ __device__ void unpack20(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -726,7 +726,7 @@ void unpack20(unsigned int *p, unsigned int *w)
 }
 
 
-void unpack32(unsigned int *p, unsigned int *w)
+__host__ __device__ void unpack32(unsigned int *p, unsigned int *w)
 {
   int i;
 

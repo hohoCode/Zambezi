@@ -122,7 +122,7 @@ void pack(unsigned int *v, unsigned int b, unsigned int n, unsigned int *w)
 }
 
 /*modified p4decode */
-unsigned int *detailed_p4_decode(unsigned int *_p, unsigned int *_w,  unsigned int * all_array, int delta)
+__host__ __device__ unsigned int *detailed_p4_decode(unsigned int *_p, unsigned int *_w,  unsigned int * all_array, int delta)
 {
 
   int i, s;
@@ -136,7 +136,16 @@ unsigned int *detailed_p4_decode(unsigned int *_p, unsigned int *_w,  unsigned i
 
   (unpack[b])(_p, _w);
 
-  b = cnum[b];
+  if(b <= 13 ){
+	b = (int)b;
+  }else if (b == 14){
+    b = 16;
+  } else if (b == 15){
+    b = 20;
+  } else if (b == 16) {
+    b = 32;
+  }
+  //b = cnum[b];
   _w += ((b * BLOCK_SIZE)>>5);
   unsigned int _k = 0;
   unsigned int psum = 0;

@@ -23,13 +23,13 @@
 #include "Pointers.h"
 #include "Config.h"
 
-typedef struct InvertedIndex InvertedIndex;
+//typedef struct InvertedIndex InvertedIndex;
 
-struct InvertedIndex {
+typedef struct InvertedIndex {
   PostingsPool* pool;
   Dictionary** dictionary;
   Pointers* pointers;
-};
+} InvertedIndex;
 
 InvertedIndex* createInvertedIndex() {
   InvertedIndex* index = (InvertedIndex*) malloc(sizeof(InvertedIndex));

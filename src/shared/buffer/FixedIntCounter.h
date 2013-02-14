@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct FixedIntCounter FixedIntCounter;
+//typedef struct FixedIntCounter FixedIntCounter;
 
 #ifndef DEFAULT_VALUE_ENUM_GUARD
 #define DEFAULT_VALUE_ENUM_GUARD
@@ -15,11 +15,11 @@ enum DefaultValue {
 };
 #endif
 
-struct FixedIntCounter {
+typedef struct FixedIntCounter {
   int* counter;
   unsigned int vocabSize;
   DefaultValue defaultValue;
-};
+} FixedIntCounter;
 
 FixedIntCounter* createFixedIntCounter(int initialSize, DefaultValue defaultValue) {
   FixedIntCounter* counter = (FixedIntCounter*) malloc(sizeof(FixedIntCounter));

@@ -14,14 +14,14 @@
 #define DECODE_OFFSET(P) ((unsigned int) (P & 0xFFFFFFFF))
 #define ENCODE_POINTER(S, O) ((((unsigned long) S)<<32) | (unsigned int) O)
 
-typedef struct PostingsPool PostingsPool;
+//typedef struct PostingsPool PostingsPool;
 
-struct PostingsPool {
+typedef struct PostingsPool {
   unsigned int numberOfPools;
   unsigned int segment;
   unsigned int offset;
   int** pool;
-};
+} PostingsPool;
 
 void writePostingsPool(PostingsPool* pool, FILE* fp) {
   fwrite(&pool->segment, sizeof(unsigned int), 1, fp);
