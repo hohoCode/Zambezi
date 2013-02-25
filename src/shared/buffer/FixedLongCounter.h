@@ -11,7 +11,8 @@
 typedef enum DefaultValue DefaultValue;
 enum DefaultValue {
   ZERO = 0,
-  NEGATIVE_ONE = -1
+  NEGATIVE_ONE = -1,
+  CZERO = -11
 };
 #endif
 

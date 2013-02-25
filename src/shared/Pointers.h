@@ -22,8 +22,8 @@ typedef struct Pointers {
 
 Pointers* createPointers(int size) {
   Pointers* pointers = (Pointers*) malloc(sizeof(Pointers));
-  pointers->df = createFixedIntCounter(size, 0);
-  pointers->startPointers = createFixedLongCounter(size, UNDEFINED_POINTER);
+  pointers->df = createFixedIntCounter(size, ZERO);
+  pointers->startPointers = createFixedLongCounter(size,CZERO);
   //pointers->docLen = createFixedIntCounter(size, 0);
   //pointers->maxTf = createFixedIntCounter(size, 0);
   //pointers->maxTfDocLen = createFixedIntCounter(size, 0);

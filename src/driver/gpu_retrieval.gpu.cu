@@ -872,7 +872,7 @@ __device__ int decompressDocidBlock_GPU(int* pool, unsigned int* outBlock, long 
   unsigned int pOffset = DECODE_OFFSET(pointer);
 
   unsigned int aux[BLOCK_SIZE*4];
-  unsigned int* block = &pool[pOffset + 5];
+  unsigned int* block = (unsigned int*) &pool[pOffset + 5];
   detailed_p4_decode_new(outBlock, block, aux, 1);
 
   return pool[pOffset + 3];
