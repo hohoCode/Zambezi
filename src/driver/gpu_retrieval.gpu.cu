@@ -35,7 +35,7 @@ enum Algorithm {
 /* for fast unpacking of integers of fixed bit length */
 /*************************************************************/
 
-__device__ void unpack0(unsigned int *p, unsigned int *w)
+__device__ void cunpack0(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -43,7 +43,7 @@ __device__ void unpack0(unsigned int *p, unsigned int *w)
 }
 
 
-__device__ void unpack1(unsigned int *p, unsigned int *w)
+__device__ void cunpack1(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -85,7 +85,7 @@ __device__ void unpack1(unsigned int *p, unsigned int *w)
 }
 
 
-__device__ void unpack2(unsigned int *p, unsigned int *w)
+__device__ void cunpack2(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -127,7 +127,7 @@ __device__ void unpack2(unsigned int *p, unsigned int *w)
 }
 
 
-__device__ void unpack3(unsigned int *p, unsigned int *w)
+__device__ void cunpack3(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -171,7 +171,7 @@ __device__ void unpack3(unsigned int *p, unsigned int *w)
 }
 
 
-__device__ void unpack4(unsigned int *p, unsigned int *w)
+__device__ void cunpack4(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -213,7 +213,7 @@ __device__ void unpack4(unsigned int *p, unsigned int *w)
 }
 
 
-__device__ void unpack5(unsigned int *p, unsigned int *w)
+__device__ void cunpack5(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -259,7 +259,7 @@ __device__ void unpack5(unsigned int *p, unsigned int *w)
 }
 
 
-__device__ void unpack6(unsigned int *p, unsigned int *w)
+__device__ void cunpack6(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -305,7 +305,7 @@ __device__ void unpack6(unsigned int *p, unsigned int *w)
 }
 
 
-__device__ void unpack7(unsigned int *p, unsigned int *w)
+__device__ void cunpack7(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -353,7 +353,7 @@ __device__ void unpack7(unsigned int *p, unsigned int *w)
 }
 
 
-__device__ void unpack8(unsigned int *p, unsigned int *w)
+__device__ void cunpack8(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -395,7 +395,7 @@ __device__ void unpack8(unsigned int *p, unsigned int *w)
 }
 
 
-__device__ void unpack9(unsigned int *p, unsigned int *w)
+__device__ void cunpack9(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -445,7 +445,7 @@ __device__ void unpack9(unsigned int *p, unsigned int *w)
 }
 
 
-__device__ void unpack10(unsigned int *p, unsigned int *w)
+__device__ void cunpack10(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -495,7 +495,7 @@ __device__ void unpack10(unsigned int *p, unsigned int *w)
 }
 
 
-__device__ void unpack11(unsigned int *p, unsigned int *w)
+__device__ void cunpack11(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -547,7 +547,7 @@ __device__ void unpack11(unsigned int *p, unsigned int *w)
 }
 
 
-__device__ void unpack12(unsigned int *p, unsigned int *w)
+__device__ void cunpack12(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -597,7 +597,7 @@ __device__ void unpack12(unsigned int *p, unsigned int *w)
 }
 
 
-__device__ void unpack13(unsigned int *p, unsigned int *w)
+__device__ void cunpack13(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -651,7 +651,7 @@ __device__ void unpack13(unsigned int *p, unsigned int *w)
 }
 
 
-__device__ void unpack16(unsigned int *p, unsigned int *w)
+__device__ void cunpack16(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -693,7 +693,7 @@ __device__ void unpack16(unsigned int *p, unsigned int *w)
 }
 
 
-__device__ void unpack20(unsigned int *p, unsigned int *w)
+__device__ void cunpack20(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -751,7 +751,7 @@ __device__ void unpack20(unsigned int *p, unsigned int *w)
 }
 
 
-__device__ void unpack32(unsigned int *p, unsigned int *w)
+__device__ void cunpack32(unsigned int *p, unsigned int *w)
 {
   int i;
 
@@ -818,23 +818,23 @@ __device__ unsigned int *detailed_p4_decode_new(unsigned int *_p, unsigned int *
   }
   
   switch(b) { 
-	case 0: unpack0(_p, _w); break;
-	case 1: unpack1(_p, _w); break;
-	case 2: unpack2(_p, _w);break;
-	case 3: unpack3(_p, _w);break;
-	case 4: unpack4(_p, _w);break;
-	case 5: unpack5(_p, _w);break;
-	case 6: unpack6(_p, _w);break;
-	case 7: unpack7(_p, _w);break;
-	case 8: unpack8(_p, _w);break;
-	case 9: unpack9(_p, _w);break;
-	case 10: unpack10(_p, _w);break;
-	case 11: unpack11(_p, _w);break;
-	case 12: unpack12(_p, _w);break;
-	case 13: unpack13(_p, _w);break;
-	case 16: unpack16(_p, _w);break;
-	case 20: unpack20(_p, _w);break;
-	case 32: unpack32(_p, _w);break; 
+	case 0: cunpack0(_p, _w); break;
+	case 1: cunpack1(_p, _w); break;
+	case 2: cunpack2(_p, _w);break;
+	case 3: cunpack3(_p, _w);break;
+	case 4: cunpack4(_p, _w);break;
+	case 5: cunpack5(_p, _w);break;
+	case 6: cunpack6(_p, _w);break;
+	case 7: cunpack7(_p, _w);break;
+	case 8: cunpack8(_p, _w);break;
+	case 9: cunpack9(_p, _w);break;
+	case 10: cunpack10(_p, _w);break;
+	case 11: cunpack11(_p, _w);break;
+	case 12: cunpack12(_p, _w);break;
+	case 13: cunpack13(_p, _w);break;
+	case 16: cunpack16(_p, _w);break;
+	case 20: cunpack20(_p, _w);break;
+	case 32: cunpack32(_p, _w);break; 
   }
 
   //b = cnum[b];
