@@ -145,7 +145,7 @@ unsigned int *detailed_p4_decode(unsigned int *_p, unsigned int *_w,  unsigned i
     b = 32;
   }
   
-  switch(b) { */
+  switch(b) { 
 	case 0: unpack0(_p, _w); break;
 	case 1: unpack1(_p, _w); break;
 	case 2: unpack2(_p, _w);break;
