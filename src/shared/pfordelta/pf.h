@@ -134,7 +134,7 @@ __host__ __device__ unsigned int *detailed_p4_decode(unsigned int *_p, unsigned 
   unsigned int b = ((flag>>10) & 31);
   unsigned int e_n = (flag & 1023) ;
 
-  (unpack[b])(_p, _w);
+  //(unpack[b])(_p, _w);
 
   if(b <= 13 ){
 	b = (int)b;
@@ -145,6 +145,27 @@ __host__ __device__ unsigned int *detailed_p4_decode(unsigned int *_p, unsigned 
   } else if (b == 16) {
     b = 32;
   }
+  
+  switch(b) { */
+	case 0: unpack0(_p, _w); break;
+	case 1: unpack1(_p, _w); break;
+	case 2: unpack2(_p, _w);break;
+	case 3: unpack3(_p, _w);break;
+	case 4: unpack4(_p, _w);break;
+	case 5: unpack5(_p, _w);break;
+	case 6: unpack6(_p, _w);break;
+	case 7: unpack7(_p, _w);break;
+	case 8: unpack8(_p, _w);break;
+	case 9: unpack9(_p, _w);break;
+	case 10: unpack10(_p, _w);break;
+	case 11: unpack11(_p, _w);break;
+	case 12: unpack12(_p, _w);break;
+	case 13: unpack13(_p, _w);break;
+	case 16: unpack16(_p, _w);break;
+	case 20: unpack20(_p, _w);break;
+	case 32: unpack32(_p, _w);break; 
+  }
+
   //b = cnum[b];
   _w += ((b * BLOCK_SIZE)>>5);
   unsigned int _k = 0;
