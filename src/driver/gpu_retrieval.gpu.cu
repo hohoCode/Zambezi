@@ -895,8 +895,11 @@ __device__ long nextPointer_GPU(int* pool, long pointer) {
 
 __device__ int* intersectPostingsLists_SvS_GPU(int* pool, long a, long b, int minDf) {
   int* set = (int*) calloc(minDf, sizeof(int));
-  unsigned int* dataA = (unsigned int*) calloc(BLOCK_SIZE * 2, sizeof(unsigned int));
-  unsigned int* dataB = (unsigned int*) calloc(BLOCK_SIZE * 2, sizeof(unsigned int));
+  
+  unsigned int* dataA = (unsigned int*) malloc(BLOCK_SIZE * 2, sizeof(unsigned int));
+  unsigned int* dataB = (unsigned int*) malloc(BLOCK_SIZE * 2, sizeof(unsigned int));
+  memset(dataA, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
+  memset(dataB, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
 
   int cA = decompressDocidBlock_GPU(pool, dataA, a);
   int cB = decompressDocidBlock_GPU(pool, dataB, b);
@@ -981,6 +984,8 @@ __device__ int* intersectPostingsLists_SvS_GPU(int* pool, long a, long b, int mi
 
 __device__ int intersectSetPostingsList_SvS_GPU(int* pool, long a, int* currentSet, int len) {
   unsigned int* data = (unsigned int*) calloc(BLOCK_SIZE * 2, sizeof(unsigned int));
+  memset(data, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
+  
   int c = decompressDocidBlock_GPU(pool, data, a);
   int iSet = 0, iCurrent = 0, i = 0;
 
@@ -1052,8 +1057,12 @@ __device__ int intersectSetPostingsList_SvS_GPU(int* pool, long a, int* currentS
 
 __device__ int* intersectSvS_GPU(int* pool, long* startPointers, int len, int minDf) {
   if(len < 2) {
-    unsigned int* block = (unsigned int*) calloc(BLOCK_SIZE * 2, sizeof(unsigned int));
-    int* set = (int*) calloc(minDf, sizeof(int));
+    unsigned int* block = (unsigned int*) malloc(BLOCK_SIZE * 2, sizeof(unsigned int));
+    memset(block, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
+    
+    int* set = (int*) malloc(minDf, sizeof(int));
+    memset(set, 0, minDf* sizeof(unsigned int));
+    
     int iSet = 0;
     long t = startPointers[0];
     while(t != UNDEFINED_POINTER) {
@@ -1115,8 +1124,14 @@ __global__ void SvS_GPU(
 	  }
 	  
 	  unsigned int* qdf = (unsigned int*) calloc(qlen, sizeof(unsigned int));
+	  memset(qdf, 0, qlen * sizeof(unsigned int));
+	  
 	  int* sortedDfIndex = (int*) calloc(qlen, sizeof(int));
+	  memset(sortedDfIndex, 0, qlen * sizeof(unsigned int));
+
 	  long* qStartPointers = (long*) calloc(qlen, sizeof(long));
+	  memset(qStartPointers, 0, qlen * sizeof(unsigned int));
+	  
 	  int end = linearQ_count[qindex];
 	  int start = 0;
 	  if (qindex > 0){
