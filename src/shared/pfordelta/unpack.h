@@ -769,8 +769,8 @@ __host__ __device__ void unpack32(unsigned int *p, unsigned int *w)
 
 
 typedef void (*pf)(unsigned int *p, unsigned int *w);
-pf unpack[17] = {unpack0, unpack1, unpack2, unpack3, unpack4, unpack5,
+/*pf unpack[17] = {unpack0, unpack1, unpack2, unpack3, unpack4, unpack5,
                  unpack6, unpack7, unpack8, unpack9, unpack10, unpack11,
-                 unpack12, unpack13, unpack16, unpack20, unpack32};
+                 unpack12, unpack13, unpack16, unpack20, unpack32};*/
 
 #endif
