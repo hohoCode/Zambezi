@@ -33,7 +33,32 @@ int isFullHeap(Heap* heap) {
   return heap->index >= heap->size - 2;
 }
 
+int deleteMinHeap(Heap* heap) {
+  int minElement,lastElement,child,now;
+  float lastScore;
+  minElement = heap->docid[1];
+  lastScore = heap->score[heap->index];
+  lastElement = heap->docid[heap->index--];
+
+  for(now = 1; now*2 <= heap->index; now = child) {
+    child = now*2;
+    if(child != heap->index && heap->score[child+1] < heap->score[child] ) {
+      child++;
+    }
+    if(lastScore > heap->score[child]) {
+      heap->docid[now] = heap->docid[child];
+      heap->score[now] = heap->score[child];
+    } else {
+      break;
+    }
+  }
+  heap->docid[now] = lastElement;
+  heap->score[now] = lastScore;
+  return minElement;
+}
+
 void insertHeap(Heap* heap, int docid, float score) {
+
   heap->index++;
   heap->docid[heap->index] = docid;
   heap->score[heap->index] = score;
@@ -60,27 +85,4 @@ int minDocidHeap(Heap* heap) {
   return heap->docid[1];
 }
 
-int deleteMinHeap(Heap* heap) {
-  int minElement,lastElement,child,now;
-  float lastScore;
-  minElement = heap->docid[1];
-  lastScore = heap->score[heap->index];
-  lastElement = heap->docid[heap->index--];
-
-  for(now = 1; now*2 <= heap->index; now = child) {
-    child = now*2;
-    if(child != heap->index && heap->score[child+1] < heap->score[child] ) {
-      child++;
-    }
-    if(lastScore > heap->score[child]) {
-      heap->docid[now] = heap->docid[child];
-      heap->score[now] = heap->score[child];
-    } else {
-      break;
-    }
-  }
-  heap->docid[now] = lastElement;
-  heap->score[now] = lastScore;
-  return minElement;
-}
 #endif

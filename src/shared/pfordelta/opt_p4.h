@@ -45,7 +45,7 @@ int findBestB(unsigned int* docid) {
 
 unsigned int OPT4(unsigned int *doc_id, unsigned int list_size, unsigned int *aux, int delta)
 {
-  unsigned int size = 0;
+  int size = 0;
   int ex_n = 0;
   int i;
 

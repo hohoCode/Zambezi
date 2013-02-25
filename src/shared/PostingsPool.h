@@ -269,7 +269,7 @@ int decompressDocidBlock(PostingsPool* pool, unsigned int* outBlock, long pointe
   unsigned int pOffset = DECODE_OFFSET(pointer);
 
   unsigned int aux[BLOCK_SIZE*4];
-  unsigned int* block = &pool->pool[pSegment][pOffset + 5];
+  unsigned int* block = (unsigned int*) &pool->pool[pSegment][pOffset + 5];
   detailed_p4_decode(outBlock, block, aux, 1);
 
   return pool->pool[pSegment][pOffset + 3];
@@ -281,7 +281,7 @@ int decompressTfBlock(PostingsPool* pool, unsigned int* outBlock, long pointer) 
 
   unsigned int aux[BLOCK_SIZE*4];
   unsigned int csize = pool->pool[pSegment][pOffset + 4];
-  unsigned int* block = &pool->pool[pSegment][pOffset + csize + 6];
+  unsigned int* block = (unsigned int*) &pool->pool[pSegment][pOffset + csize + 6];
   detailed_p4_decode(outBlock, block, aux, 0);
 
   return pool->pool[pSegment][pOffset + 3];
@@ -321,7 +321,7 @@ int decompressPositionBlock(PostingsPool* pool, unsigned int* outBlock, long poi
   unsigned int index = pOffset + csize + tfsize + 8;
   for(i = 0; i < nb; i++) {
     unsigned int sb = pool->pool[pSegment][index];
-    unsigned int* block = &pool->pool[pSegment][index + 1];
+    unsigned int* block = (unsigned int*) &pool->pool[pSegment][index + 1];
     detailed_p4_decode(&outBlock[i * BLOCK_SIZE], block, aux, 0);
     memset(aux, 0, BLOCK_SIZE * 4 * sizeof(unsigned int));
     index += sb + 1;
