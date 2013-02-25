@@ -10,6 +10,7 @@
 /* supported bit lengths */
 int cnum[17] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,16,20,32};
 
+/*
 __device__ __host__ void unpack0(unsigned int *p, unsigned int *w);
 
 __host__ __device__ void unpack1(unsigned int *p, unsigned int *w);
@@ -42,7 +43,7 @@ __host__ __device__ void unpack16(unsigned int *p, unsigned int *w);
 
 __host__ __device__ void unpack20(unsigned int *p, unsigned int *w);
 
-__host__ __device__ void unpack32(unsigned int *p, unsigned int *w);
+__host__ __device__ void unpack32(unsigned int *p, unsigned int *w);*/
 
 typedef void (*pf)(unsigned int *p, unsigned int *w);
 /*pf unpack[17] = {unpack0, unpack1, unpack2, unpack3, unpack4, unpack5,
