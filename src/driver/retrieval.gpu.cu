@@ -1319,7 +1319,7 @@ __host__ __device__ void unpack32(unsigned int *p, unsigned int *w)
 }
 
 /*modified p4decode */
-__host__ __device__ unsigned int *detailed_p4_decode(unsigned int *_p, unsigned int *_w,  unsigned int * all_array, int delta)
+__device__ unsigned int *detailed_p4_decode(unsigned int *_p, unsigned int *_w,  unsigned int * all_array, int delta)
 {
 
   int i, s;

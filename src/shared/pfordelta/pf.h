@@ -121,4 +121,78 @@ void pack(unsigned int *v, unsigned int b, unsigned int n, unsigned int *w)
   }
 }
 
+unsigned int *detailed_p4_decode(unsigned int *_p, unsigned int *_w,  unsigned int * all_array, int delta)
+{
+
+  int i, s;
+  unsigned int x;
+  int flag = _w[0];
+  (_w)++;
+
+  unsigned int *_ww,*_pp;
+  unsigned int b = ((flag>>10) & 31);
+  unsigned int e_n = (flag & 1023) ;
+
+  //(unpack[b])(_p, _w);
+
+  if(b <= 13 ){
+	b = (int)b;
+  }else if (b == 14){
+    b = 16;
+  } else if (b == 15){
+    b = 20;
+  } else if (b == 16) {
+    b = 32;
+  }
+  
+  switch(b) { */
+	case 0: unpack0(_p, _w); break;
+	case 1: unpack1(_p, _w); break;
+	case 2: unpack2(_p, _w);break;
+	case 3: unpack3(_p, _w);break;
+	case 4: unpack4(_p, _w);break;
+	case 5: unpack5(_p, _w);break;
+	case 6: unpack6(_p, _w);break;
+	case 7: unpack7(_p, _w);break;
+	case 8: unpack8(_p, _w);break;
+	case 9: unpack9(_p, _w);break;
+	case 10: unpack10(_p, _w);break;
+	case 11: unpack11(_p, _w);break;
+	case 12: unpack12(_p, _w);break;
+	case 13: unpack13(_p, _w);break;
+	case 16: unpack16(_p, _w);break;
+	case 20: unpack20(_p, _w);break;
+	case 32: unpack32(_p, _w);break; 
+  }
+
+  //b = cnum[b];
+  _w += ((b * BLOCK_SIZE)>>5);
+  unsigned int _k = 0;
+  unsigned int psum = 0;
+  if(e_n != 0 )
+  {
+    for (_pp = all_array, _ww = (unsigned int *)(_w); _pp < &(all_array[e_n*2]);)
+    {
+      S16_DECODE(_ww, _pp);
+    }
+
+    _w += (_ww - _w);
+    psum = all_array[0];
+
+    for(i=0;i<e_n;i++)
+    {
+      _p[psum] += (all_array[e_n+i]<<b);
+      psum += all_array[ i + 1] + 1;
+    }
+  }
+
+  if(delta) {
+    for(i = 1; i < BLOCK_SIZE && _p[i] != 0; i++) {
+      _p[i] += _p[i - 1];
+    }
+  }
+
+  return(_w);
+}
+
 #endif
