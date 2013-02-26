@@ -8,7 +8,7 @@
 
 #ifndef DEFAULT_VALUE_ENUM_GUARD
 #define DEFAULT_VALUE_ENUM_GUARD
-typedef enum DefaultValue DefaultValue;
+//typedef enum DefaultValue DefaultValue;
 enum DefaultValue {
   ZERO = 0,
   NEGATIVE_ONE = -1,

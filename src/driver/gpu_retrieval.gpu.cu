@@ -18,11 +18,11 @@
 
 #ifndef RETRIEVAL_ALGO_ENUM_GUARD
 #define RETRIEVAL_ALGO_ENUM_GUARD
-typedef enum Algorithm Algorithm;
-enum Algorithm {
+/*typedef enum Algorithm Algorithm;
+//enum Algorithm {
   SVS = 0,
   WAND = 1
-};
+};*/
 #endif
 
 #define THREADS_PER_BLOCK 512 
@@ -894,10 +894,11 @@ __device__ long nextPointer_GPU(int* pool, long pointer) {
 }
 
 __device__ int* intersectPostingsLists_SvS_GPU(int* pool, long a, long b, int minDf) {
-  int* set = (int*) calloc(minDf, sizeof(int));
-  
-  unsigned int* dataA = (unsigned int*) malloc(BLOCK_SIZE * 2, sizeof(unsigned int));
-  unsigned int* dataB = (unsigned int*) malloc(BLOCK_SIZE * 2, sizeof(unsigned int));
+  int* set = (int*) malloc(minDf * sizeof(int));
+  memset(set, 0, minDf * sizeof(int));
+
+  unsigned int* dataA = (unsigned int*) malloc(BLOCK_SIZE * 2 * sizeof(unsigned int));
+  unsigned int* dataB = (unsigned int*) malloc(BLOCK_SIZE * 2 * sizeof(unsigned int));
   memset(dataA, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
   memset(dataB, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
 
@@ -983,7 +984,7 @@ __device__ int* intersectPostingsLists_SvS_GPU(int* pool, long a, long b, int mi
 }
 
 __device__ int intersectSetPostingsList_SvS_GPU(int* pool, long a, int* currentSet, int len) {
-  unsigned int* data = (unsigned int*) calloc(BLOCK_SIZE * 2, sizeof(unsigned int));
+  unsigned int* data = (unsigned int*) malloc(BLOCK_SIZE * 2 * sizeof(unsigned int));
   memset(data, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
   
   int c = decompressDocidBlock_GPU(pool, data, a);
@@ -1057,10 +1058,10 @@ __device__ int intersectSetPostingsList_SvS_GPU(int* pool, long a, int* currentS
 
 __device__ int* intersectSvS_GPU(int* pool, long* startPointers, int len, int minDf) {
   if(len < 2) {
-    unsigned int* block = (unsigned int*) malloc(BLOCK_SIZE * 2, sizeof(unsigned int));
+    unsigned int* block = (unsigned int*) malloc(BLOCK_SIZE * 2 *sizeof(unsigned int));
     memset(block, 0, BLOCK_SIZE * 2 * sizeof(unsigned int));
     
-    int* set = (int*) malloc(minDf, sizeof(int));
+    int* set = (int*) malloc(minDf * sizeof(int));
     memset(set, 0, minDf* sizeof(unsigned int));
     
     int iSet = 0;
@@ -1123,13 +1124,13 @@ __global__ void SvS_GPU(
 		return;
 	  }
 	  
-	  unsigned int* qdf = (unsigned int*) calloc(qlen, sizeof(unsigned int));
+	  unsigned int* qdf = (unsigned int*) malloc(qlen * sizeof(unsigned int));
 	  memset(qdf, 0, qlen * sizeof(unsigned int));
 	  
-	  int* sortedDfIndex = (int*) calloc(qlen, sizeof(int));
+	  int* sortedDfIndex = (int*) malloc(qlen * sizeof(int));
 	  memset(sortedDfIndex, 0, qlen * sizeof(unsigned int));
 
-	  long* qStartPointers = (long*) calloc(qlen, sizeof(long));
+	  long* qStartPointers = (long*) malloc(qlen * sizeof(long));
 	  memset(qStartPointers, 0, qlen * sizeof(unsigned int));
 	  
 	  int end = linearQ_count[qindex];
@@ -1228,7 +1229,7 @@ void SvS_GPU_Entry(
 	int id = -1;
 	int fqlen, pos, termid;	
 	int hits = 1000;
-	Algorithm algorithm = SVS;
+	//Algorithm algorithm = SVS;
 
 	printf("INside SvS GPU Entry!!!\n");
 	if(queryLength==NULL || idToIndexMap == NULL || outputPath == NULL || index == NULL || fp == NULL){
@@ -1316,22 +1317,23 @@ int main (int argc, char** args) {
     hits = atoi(getValueCL(argc, args, "-hits"));
   }
   // Algorithm
-  char* intersectionAlgorithm = getValueCL(argc, args, "-algorithm");
-  Algorithm algorithm = SVS;
+  //char* intersectionAlgorithm = getValueCL(argc, args, "-algorithm");
+  //Algorithm algorithm = SVS;
 
   // Algorithm is limited to the following list (case sensitive):
   // - SvS (conjunctive)
   // - WAND (disjunctive)
-  if(!strcmp(intersectionAlgorithm, "SvS")) {
+  /*if(!strcmp(intersectionAlgorithm, "SvS")) {
     algorithm = SVS;
   } else if(!strcmp(intersectionAlgorithm, "WAND")) {
     algorithm = WAND;
   } else {
     printf("Invalid algorithm (Options: SvS | WAND)\n");
     return;
-  }
+  }*/
 
   // Read the inverted index
+  printf("Start reading!\n");
   InvertedIndex* index = readInvertedIndex(inputPath);
   printf("Done reading!\n");
   // Read queries. Query file must be in the following format:

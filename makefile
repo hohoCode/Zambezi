@@ -4,13 +4,14 @@ CC     = gcc
 NVCC =nvcc -arch=compute_20 -code=sm_20 #--compiler-options -fpermissive
 CUDA_INSTALL_PATH	:= /opt/common/cuda/cudatoolkit-4.2.9
 DRIVER_DIR = src/driver
+SHARED_DIR = src/shared
 
-OPT = -O3 #-g -G #--compiler-options -fpermissive #-finput-charset=charset #-fexec-charset=charset
+OPT = -O3#-g -G #--compiler-options -fpermissive #-finput-charset=charset #-fexec-charset=charset
 
-NVCCFLAGS = $(OPT) -lz -use_fast_math -I. -I./src/shared -I$(CUDA_INSTALL_PATH)/include 
+NVCCFLAGS = $(OPT) -use_fast_math -I. -I./src/shared -I$(CUDA_INSTALL_PATH)/include  
 CFLAGS = $(OPT) -Wall -Wno-format -I./src/shared
-LFLAGS = -fPIC -lm  -L$(CUDA_INSTALL_PATH)/lib64 -lcudart -lcuda 
-DEPS   =  $(wildcard *.h)
+LFLAGS = -fPIC -lm -L$(CUDA_INSTALL_PATH)/lib64 -lcudart -lcuda 
+DEPS   =  $(wildcard $(SHARED_DIR)/*.h)
 SOURCES = $(wildcard $(DRIVER_DIR)/*.c)
 CUSOURCES = $(wildcard $(DRIVER_DIR)/*.cu)
 OBJS    = $(SOURCES:%.c=$(OBJDIR)/%.o)
@@ -28,10 +29,10 @@ TARGET = $(BINDIR)/retrieval.gpu
 
 all : $(OBJDIR) $(BINDIR) $(TARGET)
 
-$(TARGET): $(OBJS) $(CUOBJS)
+$(TARGET): $(CUOBJS)
 		@echo
 		@echo Linking ...
-		$(CC) $(LFLAGS) -o $@ $(OBJS) $(CUOBJS)
+		$(CC) $(LFLAGS) -o $@ $(CUOBJS)
 		@rm -f *.linkinfo
 		@$(ETAGSCMD)
 
@@ -41,6 +42,7 @@ $(OBJS): $(OBJDIR)/%.o: %.c $(DEPS)
 
 $(CUOBJS): $(OBJDIR)/%.cu_o: %.cu $(DEPS)
 		$(NVCC) $(NVCCFLAGS) -c $< -o $@
+		@echo DONE.....!!!
 
 $(OBJDIR):
 		@if test ! -d $(OBJDIR); then mkdir $(OBJDIR); fi
