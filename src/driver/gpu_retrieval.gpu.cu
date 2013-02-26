@@ -1114,7 +1114,7 @@ __global__ void SvS_GPU(
 	  return;
 	}
 
-	  //printf("id = %d\n", id);
+	 printf("Start QID = %d\n", id);
 	  // Measure elapsed time
 	  int i, j;
 	  int qlen = queryLength_counter[id];
@@ -1232,7 +1232,7 @@ void SvS_GPU_Entry(
 	//Algorithm algorithm = SVS;
 
 	printf("INside SvS GPU Entry!!!\n");
-	if(queryLength==NULL || idToIndexMap == NULL || outputPath == NULL || index == NULL || fp == NULL){
+	if(queryLength==NULL || idToIndexMap == NULL || index == NULL){
 		printf("NULLL\n");
 	}	
 
@@ -1270,8 +1270,9 @@ void SvS_GPU_Entry(
 	gettimeofday(&gpustart, NULL);
 	dim3  block(THREADS_PER_BLOCK, 1);
 	dim3  grid((totalQuery + THREADS_PER_BLOCK - 1)/THREADS_PER_BLOCK, 1);
-
-	SvS_GPU<<<grid, block>>>(	
+      pirntf("Query Number: %d - Block Number %d\n", totalQuery, grid.x);
+      
+	SvS_GPU<<<grid, block>>>(
 		queryLength_counter,
 		queryLength->vocabSize,//queryLength_vocabSize,
 		queryLength->defaultValue,//queryLength_defaultValue,	
