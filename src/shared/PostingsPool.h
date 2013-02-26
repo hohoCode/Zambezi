@@ -45,7 +45,7 @@ PostingsPool* readPostingsPool(FILE* fp) {
     pool->pool[i] = (int*) calloc(MAX_INT_VALUE, sizeof(int));
     fread(pool->pool[i], sizeof(int), MAX_INT_VALUE, fp);
   }
-  pool->pool[pool->segment] = (int*) calloc(MAX_INT_VALUE, sizeof(int));
+  pool->pool[pool->segment] = (int*) calloc(pool->offset+100, sizeof(int));
   fread(pool->pool[pool->segment], sizeof(int), pool->offset, fp);
   return pool;
 }

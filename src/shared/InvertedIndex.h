@@ -76,15 +76,19 @@ InvertedIndex* readInvertedIndex(char* rootPath) {
   FILE* fp = fopen(dicPath, "rb");
   index->dictionary = readDictionary(fp);
   fclose(fp);
+  printf("Done with Dictionary reading!\n");
 
   char indexPath[1024];
   strcpy(indexPath, rootPath);
   strcat(indexPath, "/");
   strcat(indexPath, INDEX_FILE);
   fp = fopen(indexPath, "rb");
+  
+  printf("Done with File open for reading!\n");
   index->pool = readPostingsPool(fp);
   fclose(fp);
 
+  printf("Done with Posting List reading!\n");
   char pointerPath[1024];
   strcpy(pointerPath, rootPath);
   strcat(pointerPath, "/");
